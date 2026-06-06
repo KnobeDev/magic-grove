@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>The Sequoia Grove — A Walkable KNOBE Journey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="grove/grove.css" />
+<script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+<style>
+  /* photographic canopy behind the name screen */
+  #intro{
+    background:
+      linear-gradient(rgba(8,12,6,0.50), rgba(8,12,6,0.82)),
+      url('grove/assets/canopy-up.webp') center 30%/cover no-repeat,
+      radial-gradient(ellipse at 50% 20%, #2a3a1f 0%, #0c1208 75%) !important;
+  }
+  #intro .intro-card{
+    background: radial-gradient(ellipse at center, rgba(10,14,8,0.35), rgba(10,14,8,0));
+    padding: 30px 26px; border-radius: 18px;
+  }
+  /* fade-in choreography for the intro copy */
+  #intro .eyebrow,#intro h1,#intro .lede,#intro .ask,#intro .name-wrap{
+    opacity:0; animation: introRise 1.1s ease forwards;
+  }
+  #intro h1{animation-delay:.15s}
+  #intro .lede.l1{animation-delay:.7s}
+  #intro .lede.l2{animation-delay:1.4s}
+  #intro .ask{animation-delay:2.1s}
+  #intro .name-wrap{animation-delay:2.6s}
+  @keyframes introRise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  /* reticle dot for orientation */
+  .gaze-pip{background:rgba(14,20,10,0.5);padding:5px 12px;border-radius:999px}
+
+  /* Heavy backdrop-filter over the live WebGL canvas stalls the slide
+     transitions — drop it on the sliding panels and lean on opacity instead. */
+  #task{ backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+    background:rgba(19,25,15,0.975) !important; }
+  #sidebar{ backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+    background:rgba(9,13,7,0.99) !important; }
+  #scrim{ backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+</style>
+</head>
+<body>
+
+  <!-- ====================== 3D WORLD ====================== -->
+  <a-scene grove-builder background="color: #9fc6e8"
+    renderer="colorManagement: true; physicallyCorrectLights: true; toneMapping: ACESFilmic; exposure: 1.05; antialias: true; sortObjects: true; logarithmicDepthBuffer: true"
+    vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"
+    embedded>
+    <a-entity id="cam" camera="fov: 70; near: 0.1; far: 320; active: true"
+      look-controls="enabled: false" wasd-controls="enabled: false"
+      position="0 8 64"></a-entity>
+  </a-scene>
+
+  <!-- ====================== BOOT LOADER ====================== -->
+  <div id="boot">
+    <div class="boot-inner">
+      <div class="boot-mark">THE SEQUOIA GROVE</div>
+      <div class="boot-sub">kindling the morning light through two thousand years…</div>
+      <div class="boot-bar"><i></i></div>
+    </div>
+  </div>
+
+  <!-- ====================== NAME / ENTRY ====================== -->
+  <div id="intro">
+    <div class="intro-card">
+      <div class="eyebrow">A Walkable KNOBE Journey · KNOBE.AI</div>
+      <h1>The Grove Has<br />Been Waiting</h1>
+      <p class="lede l1">There is a grove of giant sequoias that has watched the world for two thousand years. It is curious about your work — what you are making, what you are carrying, what you hope survives.</p>
+      <p class="lede l2">Walk among the trees. At each one, the grove asks you something true, and gathers your answers into a single seed you carry out.</p>
+      <div class="ask">What should we call you?</div>
+      <div class="name-wrap">
+        <input type="text" id="name-input" maxlength="60" autocomplete="off" placeholder="A name to carry into the grove" />
+        <button class="btn" id="enter-btn" disabled>Enter the Grove →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== HUD ====================== -->
+  <div id="hud">
+    <!-- top: title + progress -->
+    <div class="hud-top">
+      <span class="title">The Grove</span>
+      <span class="sep"></span>
+      <div class="progress-dots" id="progress"></div>
+    </div>
+
+    <!-- on-screen footpath toggle (default on) -->
+    <button class="path-toggle on" id="path-toggle" title="Toggle the footpath to your next stop">
+      <span class="dot"></span> Footpath&nbsp;<b id="path-state">On</b>
+    </button>
+
+    <!-- tools -->
+    <div class="hud-tools">
+      <a class="tool" id="tool-home" href="index.html" title="Switch view · back to entrance">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
+      </a>
+      <div class="tool" id="tool-path" title="Show the path to your next stop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20s-5-1-5-5 4-4 7-4 6-1 6-4-4-4-4-4"/><circle cx="7" cy="20" r="1.4" fill="currentColor" stroke="none"/><circle cx="13" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="17" cy="5" r="1.2" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <div class="tool" id="tool-seed" title="Your seed">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-3-7-7 0-5 7-11 7-11s7 6 7 11c0 4-3 7-7 7z"/><path d="M12 21v-9M9 14l3-2 3 2"/></svg>
+      </div>
+      <div class="tool" id="tool-audio" title="Ambient sound">
+        <svg class="a-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14"/></svg>
+        <svg class="a-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M22 9l-6 6M16 9l6 6"/></svg>
+      </div>
+      <div class="tool" id="tool-fs" title="Fullscreen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+      </div>
+    </div>
+
+    <!-- movement hint -->
+    <div class="hud-hint" id="hud-hint">
+      <div><b>W A S D</b> walk &nbsp;·&nbsp; <b>drag</b> to look</div>
+      <div style="margin-top:6px"><b>click</b> ground to walk there &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Q</b> gaze up</div>
+      <div style="margin-top:6px"><b>I</b> &nbsp;or click&nbsp; to reflect at a glowing tree &nbsp;·&nbsp; <b>Enter</b> throw a rock</div>
+      <div style="margin-top:6px">follow the <b>golden footpath</b> to your next stop</div>
+      <span class="dismiss" id="hint-dismiss">dismiss</span>
+    </div>
+
+    <!-- gaze pip -->
+    <div class="gaze-pip">hold <b>Q</b> to look up into the canopy</div>
+
+    <!-- proximity prompt -->
+    <div id="prompt"></div>
+  </div>
+
+  <!-- ====================== TASK PANEL ====================== -->
+  <div id="scrim"></div>
+  <aside id="task">
+    <div class="task-head">
+      <div class="layer" id="task-layer">Layer</div>
+      <h2 id="task-title">Station</h2>
+      <div class="sub" id="task-sub">subtitle</div>
+      <div class="task-close" id="task-close" title="Close (Esc)">✕</div>
+    </div>
+    <div class="task-body" id="task-body"></div>
+    <div class="task-foot">
+      <span class="saved" id="task-saved">✓ saved to your seed</span>
+      <button class="btn ghost" id="task-walkon">Walk on →</button>
+    </div>
+  </aside>
+
+  <!-- ====================== SEED SIDEBAR ====================== -->
+  <button id="seed-toggle">▸ your seed · .knobe.md</button>
+  <aside id="sidebar">
+    <span class="sb-close" id="sb-close">✕ close</span>
+    <h3>Your Seed</h3>
+    <div class="filename" id="seed-filename">seed.knobe.md</div>
+    <div id="knobe-preview"></div>
+  </aside>
+
+  <!-- ====================== TOUCH JOYSTICK ====================== -->
+  <div id="joy"><i></i></div>
+
+  <!-- ====================== TOAST ====================== -->
+  <div id="toast"></div>
+
+  <!-- ====================== SCRIPTS ====================== -->
+  <script src="grove/grove-data.js"></script>
+  <script src="grove/sequoia.js"></script>
+  <script src="grove/grove-env.js"></script>
+  <script src="grove/grove-player.js"></script>
+  <script src="grove/grove-stations.js"></script>
+  <script src="grove/grove-knobe.js"></script>
+  <script src="grove/grove-ui.js"></script>
+  <script>
+  (function () {
+    var scene = document.querySelector('a-scene');
+    var booted = false;
+
+    scene.addEventListener('grove-ready', function () {
+      if (booted) return; booted = true;
+
+      // WebGL context-loss guard — preventDefault lets three.js rebuild GPU
+      // resources on restore instead of leaving a blank/green canvas.
+      var cv = scene.canvas;
+      if (cv) {
+        cv.addEventListener('webglcontextlost', function (e) {
+          e.preventDefault();
+          if (window.GROVE.ui) window.GROVE.ui.toast('Restoring the grove…');
+        }, false);
+        cv.addEventListener('webglcontextrestored', function () {
+          try {
+            scene.renderer.compile(scene.object3D, scene.camera);
+            scene.renderer.render(scene.object3D, scene.camera);
+          } catch (err) {}
+          if (window.GROVE.ui) window.GROVE.ui.toast('The grove returns.');
+        }, false);
+      }
+
+      // 1 · wire the systems together
+      window.GROVE.player.init(scene);
+      window.GROVE.stations.build(scene.object3D);
+      window.GROVE.ui.init();
+      window.GROVE.knobe.updatePreview();
+      window.GROVE.stations.refresh();
+
+      // 2 · per-frame marker animation (env ticks shafts/motes; player ticks camera)
+      if (!scene.components['stationsdriver']) {
+        AFRAME.registerComponent('stationsdriver', {
+          tick: function (t) { if (window.GROVE.stations) window.GROVE.stations.tick(t); }
+        });
+        scene.setAttribute('stationsdriver', '');
+      }
+
+      // 3 · freeze the walker until the visitor enters
+      window.GROVE.player.freeze(true);
+
+      // 4 · dismiss the boot loader
+      var boot = document.getElementById('boot');
+      setTimeout(function () { boot.classList.add('gone'); setTimeout(function () { boot.remove(); }, 1000); }, 400);
+    });
+
+    // ---- name / entry ----
+    var nameInput = document.getElementById('name-input');
+    var enterBtn = document.getElementById('enter-btn');
+    var intro = document.getElementById('intro');
+
+    nameInput.addEventListener('input', function () {
+      enterBtn.disabled = nameInput.value.trim().length < 1;
+    });
+    nameInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && nameInput.value.trim()) enterGrove();
+    });
+    enterBtn.addEventListener('click', enterGrove);
+
+    var hintTimer = null;
+    function enterGrove() {
+      var name = nameInput.value.trim();
+      if (!name) return;
+      window.GROVE.knobe.setName(name);
+      intro.classList.add('gone');
+      setTimeout(function () { intro.remove(); }, 1000);
+      window.GROVE.player.freeze(false);
+      try { window.GROVE.ui.startAudio(); } catch (e) {}
+      window.GROVE.ui.toast('Walk toward the leaning gateway — the Threshold awaits, ' + name + '.');
+      // auto-dismiss the movement hint after a while
+      hintTimer = setTimeout(function () {
+        var h = document.getElementById('hud-hint'); if (h) h.style.display = 'none';
+      }, 14000);
+    }
+
+    document.getElementById('hint-dismiss').addEventListener('click', function () {
+      var h = document.getElementById('hud-hint'); if (h) h.style.display = 'none';
+      if (hintTimer) clearTimeout(hintTimer);
+    });
+
+    // ---- walk-on button inside the task panel ----
+    document.getElementById('task-walkon').addEventListener('click', function () {
+      window.GROVE.ui.closeTask();
+      var next = null, list = window.GROVE.STATIONS, S = window.GROVE.stations;
+      for (var i = 0; i < list.length; i++) {
+        if (!S.isComplete(list[i])) { next = list[i]; break; }
+      }
+      if (next) window.GROVE.ui.toast('Your seed is growing — next: ' + next.num + ' · ' + next.title);
+      else window.GROVE.ui.toast('Every tree has spoken. Your seed is complete — gather it at the heart of the grove.');
+    });
+  })();
+  </script>
+</body>
+</html>

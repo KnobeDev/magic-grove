@@ -1,0 +1,2158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Magic Grove — A Journey into KNOBE</title>
+<!-- Google Fonts removed for offline use -->
+<!-- Google Fonts removed for offline use -->
+<style>
+/* ============================================
+   MAGIC GROVE v4 — CSS
+   ============================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Core palette */
+  --bark: #8B3A1F;
+  --bark-deep: #5C2210;
+  --sapwood: #D4A24E;
+  --sapwood-glow: #E8C47A;
+  --heartwood: #3E2817;
+  --heartwood-ring: #6B4226;
+  --root: #2A3C1F;
+  --root-myc: #A8C77B;
+  --cone: #7A6238;
+  --seed-gold: #C9A84C;
+
+  /* UI palette */
+  --bg-deep: #0C0E08;
+  --bg-section: #111610;
+  --text-primary: #E8E2D6;
+  --text-secondary: #B5AD9E;
+  --text-muted: #7A7468;
+  --question-bg: rgba(45, 72, 35, 0.25);
+  --question-border: #4A7A3A;
+  --grove-key-bg: rgba(30, 55, 22, 0.4);
+  --grove-key-border: #3D6630;
+  --input-bg: rgba(20, 24, 16, 0.8);
+  --input-border: #3A3D34;
+  --input-focus: var(--sapwood);
+  --btn-primary: var(--sapwood);
+  --btn-text: #1A1408;
+  --sidebar-bg: #0F1209;
+  --sidebar-border: #2A2D22;
+
+  /* Typography */
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Source Serif 4', Georgia, serif;
+  --font-mono: 'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace;
+
+  /* Spacing */
+  --section-max: 720px;
+  --sidebar-width: 380px;
+}
+
+html {
+  font-size: 18px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  font-weight: 300;
+  color: var(--text-primary);
+  background: var(--bg-deep);
+  line-height: 1.72;
+  overflow: hidden;
+  height: 100dvh;
+  width: 100vw;
+}
+
+/* ---- LAYOUT SHELL ---- */
+
+#app {
+  display: flex;
+  height: 100dvh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+#main-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  position: relative;
+}
+
+/* ---- AUDIO CONTROL ---- */
+
+#audio-control {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 100;
+  background: rgba(15, 18, 9, 0.85);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  backdrop-filter: blur(8px);
+}
+#audio-control:hover { border-color: var(--sapwood); }
+#audio-control svg { width: 20px; height: 20px; fill: var(--text-secondary); }
+#audio-control.playing svg { fill: var(--sapwood); }
+
+/* ---- SIDEBAR ---- */
+
+#sidebar {
+  width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  border-left: 1px solid var(--sidebar-border);
+  overflow-y: auto;
+  padding: 32px 24px;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  position: relative;
+}
+
+#sidebar.closed {
+  transform: translateX(100%);
+  width: 0;
+  padding: 0;
+  border: none;
+  overflow: hidden;
+}
+
+#sidebar-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 200;
+  background: rgba(15, 18, 9, 0.85);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  transition: all 0.3s;
+}
+#sidebar-toggle:hover { border-color: var(--sapwood); color: var(--sapwood); }
+
+#sidebar h3 {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--sapwood);
+  margin-bottom: 6px;
+}
+
+#sidebar .seed-label {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  font-weight: 400;
+}
+
+#knobe-preview {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+#knobe-preview .field-label {
+  color: var(--sapwood);
+  font-weight: 600;
+}
+
+#knobe-preview .field-value {
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 12px;
+  padding-left: 8px;
+  border-left: 2px solid var(--sidebar-border);
+}
+
+#knobe-preview .field-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  display: block;
+  margin-bottom: 12px;
+  padding-left: 8px;
+  border-left: 2px solid rgba(42, 45, 34, 0.4);
+}
+
+#knobe-preview .hash-line {
+  color: var(--bark);
+  word-break: break-all;
+}
+
+/* ---- SECTIONS / SLIDES ---- */
+
+.section {
+  display: none;
+  min-height: 100dvh;
+  padding: 80px 40px 100px;
+  position: relative;
+  overflow: hidden;
+}
+
+.section.active { display: flex; }
+
+.section-inner {
+  max-width: var(--section-max);
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Section atmosphere backgrounds */
+.section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.section > * { position: relative; z-index: 1; }
+
+/* Entry */
+#s-entry { background: var(--bg-deep); }
+#s-entry::before {
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(42, 60, 31, 0.15) 0%, transparent 70%),
+    radial-gradient(ellipse at 80% 70%, rgba(90, 70, 40, 0.08) 0%, transparent 50%);
+}
+
+/* Threshold */
+#s-threshold { background: linear-gradient(180deg, #0D100A 0%, #131A0E 100%); }
+#s-threshold::before {
+  background:
+    radial-gradient(ellipse at 30% 60%, rgba(42, 60, 31, 0.2) 0%, transparent 60%);
+}
+
+/* Visitor Center */
+#s-visitor { background: linear-gradient(180deg, #14130E 0%, #181610 100%); }
+#s-visitor::before {
+  background:
+    radial-gradient(ellipse at 60% 40%, rgba(180, 140, 60, 0.06) 0%, transparent 50%);
+}
+
+/* Naming */
+#s-naming { background: linear-gradient(180deg, #12110C 0%, #161410 100%); }
+#s-naming::before {
+  background:
+    radial-gradient(ellipse at 40% 50%, rgba(160, 120, 50, 0.08) 0%, transparent 60%);
+}
+
+/* Bark */
+#s-bark { background: linear-gradient(180deg, #1A0E08 0%, #140A06 100%); }
+#s-bark::before {
+  background:
+    radial-gradient(ellipse at 50% 60%, rgba(139, 58, 31, 0.15) 0%, transparent 60%),
+    radial-gradient(ellipse at 20% 30%, rgba(92, 34, 16, 0.1) 0%, transparent 40%);
+}
+
+/* Mother of the Forest */
+#s-mother { background: linear-gradient(180deg, #0E0C08 0%, #0A0806 100%); }
+#s-mother::before {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(80, 60, 30, 0.08) 0%, transparent 60%);
+}
+
+/* Sapwood */
+#s-sapwood { background: linear-gradient(180deg, #141008 0%, #18140A 100%); }
+#s-sapwood::before {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(212, 162, 78, 0.1) 0%, transparent 55%),
+    radial-gradient(ellipse at 70% 70%, rgba(232, 196, 122, 0.06) 0%, transparent 40%);
+}
+
+/* Heartwood */
+#s-heartwood { background: linear-gradient(180deg, #100C08 0%, #0E0A06 100%); }
+#s-heartwood::before {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(62, 40, 23, 0.2) 0%, transparent 55%);
+}
+
+/* Roots */
+#s-roots { background: linear-gradient(180deg, #0A100A 0%, #081008 100%); }
+#s-roots::before {
+  background:
+    radial-gradient(ellipse at 50% 70%, rgba(42, 60, 31, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 30% 30%, rgba(168, 199, 123, 0.04) 0%, transparent 40%);
+}
+
+/* Cone */
+#s-cone { background: linear-gradient(180deg, #12100A 0%, #100E08 100%); }
+#s-cone::before {
+  background:
+    radial-gradient(ellipse at 50% 60%, rgba(122, 98, 56, 0.12) 0%, transparent 50%);
+}
+
+/* Parting */
+#s-parting { background: linear-gradient(180deg, #0E100C 0%, #0C0E0A 100%); }
+#s-parting::before {
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(42, 60, 31, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 60% 80%, rgba(180, 140, 60, 0.06) 0%, transparent 40%);
+}
+
+/* Seed */
+#s-seed { background: linear-gradient(180deg, #14120C 0%, #100E08 100%); }
+#s-seed::before {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(201, 168, 76, 0.1) 0%, transparent 50%);
+}
+
+/* Diagram */
+#s-diagram { background: linear-gradient(180deg, #0E100C 0%, #0C0E08 100%); }
+#s-diagram::before {
+  background:
+    radial-gradient(ellipse at 40% 40%, rgba(42, 60, 31, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 60% 70%, rgba(212, 162, 78, 0.07) 0%, transparent 45%);
+}
+
+/* ---- TYPOGRAPHY ---- */
+
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 300;
+  line-height: 1.2;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.section-subtitle {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--text-secondary);
+  margin-bottom: 40px;
+}
+
+.narrative {
+  margin-bottom: 24px;
+  color: var(--text-primary);
+  font-weight: 300;
+}
+
+.narrative.emphasis {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+/* ---- BLOCKQUOTES (grove voice) ---- */
+
+.grove-quote {
+  border-left: 2px solid var(--sapwood);
+  padding: 16px 20px;
+  margin: 28px 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--sapwood-glow);
+  line-height: 1.6;
+  background: rgba(212, 162, 78, 0.04);
+}
+
+/* ---- QUESTIONS ---- */
+
+.question-block {
+  background: var(--question-bg);
+  border: 1px solid var(--question-border);
+  border-radius: 8px;
+  padding: 24px 28px;
+  margin: 28px 0;
+}
+
+.question-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--question-border);
+  margin-bottom: 10px;
+}
+
+.question-text {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  line-height: 1.55;
+}
+
+.question-block textarea {
+  width: 100%;
+  min-height: 100px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 300;
+  color: var(--text-primary);
+  line-height: 1.65;
+  resize: vertical;
+  transition: border-color 0.3s;
+}
+
+.question-block textarea:focus {
+  outline: none;
+  border-color: var(--input-focus);
+}
+
+.question-block textarea::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.knobe-field-indicator {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-top: 10px;
+  letter-spacing: 0.05em;
+}
+.knobe-field-indicator span { color: var(--sapwood); }
+
+/* ---- GROVE KEY ---- */
+
+.grove-key {
+  background: var(--grove-key-bg);
+  border: 1px solid var(--grove-key-border);
+  border-radius: 6px;
+  padding: 16px 20px;
+  margin: 28px 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.grove-key .key-label {
+  color: var(--root-myc);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.grove-key .key-desc {
+  color: var(--text-secondary);
+}
+
+/* ---- NAME INPUT ---- */
+
+.name-input-wrap {
+  margin: 32px 0;
+}
+
+.name-input-wrap input {
+  width: 100%;
+  max-width: 420px;
+  background: var(--input-bg);
+  border: none;
+  border-bottom: 2px solid var(--input-border);
+  padding: 12px 4px;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 400;
+  color: var(--text-primary);
+  transition: border-color 0.3s;
+}
+
+.name-input-wrap input:focus {
+  outline: none;
+  border-bottom-color: var(--sapwood);
+}
+
+.name-input-wrap input::placeholder {
+  color: var(--text-muted);
+  font-weight: 300;
+  font-size: 0.85rem;
+}
+
+/* ---- BUTTONS ---- */
+
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid var(--sapwood);
+  color: var(--sapwood);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 400;
+  padding: 12px 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.35s;
+  margin-top: 20px;
+  letter-spacing: 0.03em;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: var(--sapwood);
+  color: var(--btn-text);
+}
+
+.nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.nav-btn.primary {
+  background: var(--sapwood);
+  color: var(--btn-text);
+}
+
+.nav-btn.primary:hover:not(:disabled) {
+  background: var(--sapwood-glow);
+}
+
+/* ---- EXPORT BUTTONS ---- */
+
+.export-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.export-btn {
+  flex: 1;
+  min-width: 160px;
+  padding: 14px 20px;
+  background: var(--input-bg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.export-btn:hover {
+  border-color: var(--sapwood);
+  color: var(--sapwood);
+}
+
+/* ---- GROVE KEY SUMMARY (final section) ---- */
+
+.grove-key-summary {
+  margin: 32px 0;
+}
+
+.grove-key-summary .key-row {
+  display: flex;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(42, 45, 34, 0.3);
+  align-items: baseline;
+}
+
+.grove-key-summary .key-row:last-child { border-bottom: none; }
+
+.grove-key-summary .key-name {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--root-myc);
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.grove-key-summary .key-meaning {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 300;
+}
+
+/* ---- Q1 RECALL BOX ---- */
+
+.recall-box {
+  background: rgba(212, 162, 78, 0.08);
+  border: 1px solid rgba(212, 162, 78, 0.25);
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin: 24px 0;
+}
+
+.recall-box .recall-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sapwood);
+  margin-bottom: 10px;
+}
+
+.recall-box .recall-text {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--sapwood-glow);
+  line-height: 1.6;
+}
+
+/* ---- FOOTER ---- */
+
+.section-footer {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 60px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ---- PROGRESS BAR ---- */
+
+#progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--bark), var(--sapwood), var(--root-myc));
+  z-index: 300;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---- FADE-IN ANIMATIONS ---- */
+
+.fade-in {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: fadeUp 0.8s ease forwards;
+}
+
+@keyframes fadeUp {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in:nth-child(1) { animation-delay: 0.1s; }
+.fade-in:nth-child(2) { animation-delay: 0.25s; }
+.fade-in:nth-child(3) { animation-delay: 0.4s; }
+.fade-in:nth-child(4) { animation-delay: 0.55s; }
+.fade-in:nth-child(5) { animation-delay: 0.7s; }
+.fade-in:nth-child(6) { animation-delay: 0.85s; }
+.fade-in:nth-child(7) { animation-delay: 1.0s; }
+.fade-in:nth-child(8) { animation-delay: 1.15s; }
+.fade-in:nth-child(9) { animation-delay: 1.3s; }
+.fade-in:nth-child(10) { animation-delay: 1.45s; }
+.fade-in:nth-child(11) { animation-delay: 1.6s; }
+.fade-in:nth-child(12) { animation-delay: 1.75s; }
+.fade-in:nth-child(13) { animation-delay: 1.9s; }
+.fade-in:nth-child(14) { animation-delay: 2.05s; }
+
+/* Slow entry for the opening */
+.fade-slow {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeUp 1.4s ease forwards;
+}
+.fade-slow:nth-child(1) { animation-delay: 0.5s; }
+.fade-slow:nth-child(2) { animation-delay: 1.2s; }
+.fade-slow:nth-child(3) { animation-delay: 1.9s; }
+.fade-slow:nth-child(4) { animation-delay: 2.6s; }
+.fade-slow:nth-child(5) { animation-delay: 3.3s; }
+.fade-slow:nth-child(6) { animation-delay: 4.0s; }
+.fade-slow:nth-child(7) { animation-delay: 4.7s; }
+.fade-slow:nth-child(8) { animation-delay: 5.4s; }
+
+/* ---- RESPONSIVE ---- */
+
+@media (max-width: 900px) {
+  :root { --sidebar-width: 100vw; }
+  html { font-size: 16px; }
+  .section { padding: 60px 24px 80px; }
+  .section-title { font-size: 1.8rem; }
+
+  #sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100dvh;
+    z-index: 150;
+  }
+  #sidebar.closed { transform: translateX(100%); width: var(--sidebar-width); }
+}
+
+/* ---- SURVEY MODAL ---- */
+
+#survey-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 6, 0.85);
+  backdrop-filter: blur(6px);
+  z-index: 400;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#survey-overlay.open { display: flex; }
+
+#survey-modal {
+  background: var(--bg-section);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 10px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: 36px 32px;
+}
+
+#survey-modal h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--sapwood-glow);
+  margin-bottom: 8px;
+}
+
+#survey-modal .survey-intro {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+  line-height: 1.6;
+}
+
+.survey-question {
+  margin-bottom: 24px;
+}
+
+.survey-question label {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.survey-question .sq-num {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sapwood);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.survey-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.survey-options input[type="radio"] { display: none; }
+
+.survey-options label {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 300;
+  color: var(--text-secondary);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 5px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.25s;
+  margin-bottom: 0;
+}
+
+.survey-options input[type="radio"]:checked + label {
+  border-color: var(--sapwood);
+  color: var(--sapwood);
+  background: rgba(212, 162, 78, 0.1);
+}
+
+.survey-question textarea {
+  width: 100%;
+  min-height: 70px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 300;
+  color: var(--text-primary);
+  line-height: 1.6;
+  resize: vertical;
+  transition: border-color 0.3s;
+}
+.survey-question textarea:focus {
+  outline: none;
+  border-color: var(--input-focus);
+}
+.survey-question textarea::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.survey-btn-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+/* ---- TOAST ---- */
+
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(42, 60, 31, 0.95);
+  border: 1px solid var(--question-border);
+  color: var(--text-primary);
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  z-index: 500;
+  opacity: 0;
+  transition: all 0.4s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---- FULLSCREEN BUTTON ---- */
+
+#fullscreen-btn {
+  position: fixed;
+  bottom: 24px;
+  left: 76px;
+  z-index: 100;
+  background: rgba(15, 18, 9, 0.85);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  backdrop-filter: blur(8px);
+}
+#fullscreen-btn:hover { border-color: var(--sapwood); }
+#fullscreen-btn svg { width: 18px; height: 18px; stroke: var(--text-secondary); fill: none; stroke-width: 2; }
+#fullscreen-btn:hover svg { stroke: var(--sapwood); }
+
+/* ---- NAV ROW (back + forward) ---- */
+
+.nav-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.nav-btn.back {
+  background: transparent;
+  border: 1px solid var(--input-border);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 10px 20px;
+}
+.nav-btn.back:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+/* ---- DIAGRAM SECTION ---- */
+
+.diagram-container {
+  display: flex;
+  gap: 0;
+  margin: 32px 0;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.diagram-col {
+  flex: 1;
+  padding: 24px 20px;
+}
+
+.diagram-col.tree-col {
+  background: rgba(42, 60, 31, 0.12);
+  border-right: 1px solid var(--sidebar-border);
+}
+
+.diagram-col.knobe-col {
+  background: rgba(212, 162, 78, 0.06);
+}
+
+.diagram-col h3 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 400;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.diagram-col.tree-col h3 { color: var(--root-myc); }
+.diagram-col.knobe-col h3 { color: var(--sapwood); }
+
+.diagram-row {
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 2px;
+}
+
+.diagram-layer {
+  padding: 14px 16px;
+  border-radius: 4px;
+  width: 100%;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.diagram-layer .layer-name {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.diagram-layer .layer-desc {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+  line-height: 1.4;
+}
+
+/* Layer colors */
+.layer-bark { background: rgba(139, 58, 31, 0.25); color: #D4825A; }
+.layer-sapwood { background: rgba(212, 162, 78, 0.2); color: var(--sapwood-glow); }
+.layer-heartwood { background: rgba(62, 40, 23, 0.35); color: #C49A6C; }
+.layer-roots { background: rgba(42, 60, 31, 0.3); color: var(--root-myc); }
+.layer-cone { background: rgba(122, 98, 56, 0.25); color: var(--seed-gold); }
+
+/* Connector arrows between columns */
+.diagram-pair {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 8px;
+}
+
+.diagram-pair .diagram-layer { flex: 1; }
+
+.diagram-arrow {
+  flex-shrink: 0;
+  width: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+}
+
+@media (max-width: 600px) {
+  .diagram-pair { flex-direction: column; }
+  .diagram-arrow { transform: rotate(90deg); width: auto; margin: 4px 0; }
+}
+</style>
+<style id="grove-bg-images">
+#s-entry {
+  background: linear-gradient(rgba(12,14,8,0.72), rgba(12,14,8,0.88)),
+              url('https://media.base44.com/images/public/68b3dc8e562903af2bfb5cbb/f5c7edf92_Big_Trees_Skyward.jpg') center/cover no-repeat;
+}
+#s-threshold {
+  background: linear-gradient(rgba(12,14,8,0.72), rgba(12,14,8,0.88)),
+              url('https://media.base44.com/images/public/68b3dc8e562903af2bfb5cbb/f5c7edf92_Big_Trees_Skyward.jpg') center/cover no-repeat;
+}
+#s-visitor {
+  background: linear-gradient(rgba(12,14,8,0.70), rgba(12,14,8,0.85)),
+              url('https://media.base44.com/images/public/68b3dc8e562903af2bfb5cbb/ff6dd2b7c_Calaveras-Big-Trees-Visitor-Center-2.jpg') center/cover no-repeat;
+}
+#s-naming {
+  background: linear-gradient(rgba(12,14,8,0.72), rgba(12,14,8,0.87)),
+              url('https://media.base44.com/images/public/68b3dc8e562903af2bfb5cbb/e93d32835_Cherokee-Syllabary-Sequoyah-2.jpg') center/contain no-repeat;
+}
+#s-bark {
+  background: linear-gradient(rgba(26,14,8,0.65), rgba(20,10,6,0.82)),
+              url('https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b3dc8e562903af2bfb5cbb/daeed7d6c_sequoia_fire.jpeg') center/cover no-repeat;
+}
+#s-mother {
+  background: linear-gradient(rgba(14,12,8,0.72), rgba(10,8,6,0.88)),
+              url('https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b3dc8e562903af2bfb5cbb/5c8f006f5_mother_of_forest.jpg') center/cover no-repeat;
+}
+#s-sapwood {
+  background: linear-gradient(rgba(8,10,12,0.55), rgba(6,8,10,0.70)),
+              url('https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b3dc8e562903af2bfb5cbb/2536b609c_sapwood_living_sleeve.png') center/cover no-repeat !important;
+}
+#s-heartwood {
+  background: linear-gradient(rgba(12,8,6,0.70), rgba(10,6,4,0.85)),
+              url('https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b3dc8e562903af2bfb5cbb/bf29c6549_sequoia_rings.jpg') center/cover no-repeat;
+}
+#s-roots {
+  background: linear-gradient(rgba(8,12,8,0.70), rgba(6,10,6,0.85)),
+              url('https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b3dc8e562903af2bfb5cbb/556d4b2ea_sequoia_fungal_web.png') center/cover no-repeat;
+}
+#s-cone {
+  background: linear-gradient(rgba(12,10,6,0.70), rgba(10,8,4,0.85)),
+              url('https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b3dc8e562903af2bfb5cbb/777791a2e_Sequoia_cone_SamWu-700x467.jpg') center/125% no-repeat;
+}
+#s-parting {
+  background: linear-gradient(rgba(12,14,8,0.68), rgba(12,14,8,0.83)),
+              url('https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b3dc8e562903af2bfb5cbb/26246ffd9_CalaverasBigTrees_Gallery_10.jpg') center/contain no-repeat;
+}
+#s-seed {
+  background: linear-gradient(rgba(12,14,8,0.72), rgba(12,14,8,0.87)),
+              url('https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b3dc8e562903af2bfb5cbb/d4cbd92ee_cone_seeds.jpeg') center/contain no-repeat;
+}
+#s-diagram {
+  background: url('https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b3dc8e562903af2bfb5cbb/660935bb0_sequoia-knobe-infographic.png') center/contain no-repeat;
+}
+#s-diagram .section-inner { display: none !important; }
+#s-diagram *:not(#grove-diagram-back) { display: none !important; }
+#grove-diagram-back { display: block !important; }
+
+/* Diagram back button */
+#grove-diagram-back {
+  position: fixed !important;
+  bottom: 1.5rem !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 99999 !important;
+  padding: 0.6rem 2rem !important;
+  background: rgba(10,20,10,0.85) !important;
+  border: 1px solid rgba(100,180,100,0.4) !important;
+  color: #8aba8a !important;
+  border-radius: 4px !important;
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: 1rem !important;
+  letter-spacing: 0.08em !important;
+  cursor: pointer !important;
+  backdrop-filter: blur(4px) !important;
+}
+#grove-diagram-back:hover { border-color: rgba(140,200,140,0.7) !important; color: #b0d4b0 !important; }
+
+/* Seed page — widen the diagram button */
+#s-seed .nav-btn[onclick*="diagram"], #s-seed button[onclick*="diagram"] {
+  min-width: 14rem !important;
+  white-space: nowrap !important;
+}
+
+/* Sapwood popup overlay */
+#sapwood-popup {
+  display: none;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 99998;
+  background: rgba(6,10,6,0.97);
+  overflow-y: auto;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  color: #a0c890;
+}
+#sapwood-popup.open { display: block; }
+#sapwood-popup .sp-header { text-align: center; padding: 2rem 1.5rem 0.5rem; }
+#sapwood-popup .sp-sup { font-size: 0.55rem; letter-spacing: 0.35em; color: #4a7a5a; text-transform: uppercase; margin-bottom: 0.4rem; }
+#sapwood-popup .sp-title { font-size: 2rem; font-weight: 300; color: #8aba8a; letter-spacing: 0.06em; }
+#sapwood-popup .sp-sub { font-size: 0.9rem; color: #6a9a7a; font-style: italic; max-width: 460px; margin: 0.4rem auto 0; }
+#sapwood-popup .sp-tabs { display: flex; justify-content: center; gap: 0.5rem; padding: 0.75rem 1rem; flex-wrap: wrap; }
+#sapwood-popup .sp-tab { padding: 0.35rem 1rem; border: 1px solid rgba(80,120,80,0.3); background: rgba(15,28,15,0.6); color: #5a8a6a; border-radius: 4px; font-family: 'Cormorant Garamond', Georgia, serif; font-size: 0.85rem; cursor: pointer; }
+#sapwood-popup .sp-tab.active { border-color: #6aaa6a; color: #8aba8a; }
+#sapwood-popup .sp-body { max-width: 820px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+#sapwood-popup .sp-beat { display: none; }
+#sapwood-popup .sp-beat.active { display: block; }
+#sapwood-popup .sp-prose { font-size: 1.05rem; line-height: 1.9; color: #a0c890; font-style: italic; margin-bottom: 1rem; }
+#sapwood-popup .sp-prose2 { font-size: 0.95rem; line-height: 1.85; color: #7a9a7a; margin-bottom: 1rem; }
+#sapwood-popup .sp-quote { border-left: 2px solid rgba(100,160,100,0.3); padding-left: 1.1rem; margin: 1.2rem 0; color: #6a9a6a; font-size: 0.88rem; font-style: italic; }
+#sapwood-popup .sp-canvas { display: block; width: 100%; height: 300px; border-radius: 8px; background: transparent; }
+#sapwood-popup .sp-close-row { display: flex; justify-content: center; padding: 1rem; }
+#sapwood-popup .sp-close-btn { padding: 0.65rem 2.2rem; border: 1px solid rgba(100,160,100,0.35); background: rgba(30,50,30,0.5); color: #a0c890; border-radius: 4px; font-family: 'Cormorant Garamond', Georgia, serif; font-size: 0.95rem; letter-spacing: 0.1em; cursor: pointer; }
+/* Sapwood trigger button in s-sapwood */
+#grove-sapwood-trigger {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  border: 1px solid rgba(100,160,100,0.4);
+  background: rgba(15,30,15,0.6);
+  color: #8aba8a;
+  border-radius: 4px;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+</style><style id="grove-slow-fade">.fade-in, .narrative, .fade-slow, .section-title, .section-subtitle, .section-label,
+.grove-quote, .question-block, .knobe-field-indicator, .nav-row, .name-input-wrap {
+  animation-duration: 2.2s !important;
+  transition-duration: 2.2s !important;
+}
+.fade-slow {
+  animation-duration: 3.5s !important;
+}</style><style id="grove-no-quotes">.grove-quote{quotes:none !important;}.grove-quote::before{content:"" !important;display:none !important;}.grove-quote::after{content:"" !important;display:none !important;}*::before[class*="quote"]{content:"" !important;}*::after[class*="quote"]{content:"" !important;}</style></head>
+<body>
+<!-- Switch view · back to the grove entrance -->
+<a id="view-switch" href="index.html" title="Switch view · back to entrance">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
+  <span>Switch view</span>
+</a>
+<style>
+  #view-switch{
+    position:fixed; top:20px; left:20px; z-index:200;
+    display:flex; align-items:center; gap:8px;
+    background:rgba(15,18,9,0.9); border:1px solid var(--sidebar-border, rgba(120,150,86,0.34));
+    border-radius:8px; padding:8px 13px; cursor:pointer; text-decoration:none;
+    color:#cdbf98; font-family:'Courier New',monospace; font-size:0.7rem; letter-spacing:0.12em;
+    text-transform:uppercase; transition:all 0.2s;
+  }
+  #view-switch:hover{ border-color:#d9b25a; color:#f0d488; }
+  @media (max-width:600px){ #view-switch span{ display:none } #view-switch{ padding:9px } }
+</style>
+
+<!-- Audio -->
+<audio id="grove-audio" loop preload="auto">
+  <source src="https://fwuchekpvadybpkkmuiw.supabase.co/storage/v1/object/public/MP3/Magic_Grove.mp3" type="audio/mpeg">
+</audio>
+
+<!-- Progress bar -->
+<div id="progress-bar" style="width: 0%"></div>
+
+<!-- Audio toggle -->
+<div id="audio-control" onclick="toggleAudio()" title="Toggle music">
+  <svg id="audio-icon-off" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6m0-6l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+  <svg id="audio-icon-on" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <path d="M11 5L6 9H2v6h4l5 4V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+</div>
+
+<!-- Fullscreen toggle -->
+<div id="fullscreen-btn" onclick="toggleFullscreen()" title="Toggle fullscreen">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>
+  </svg>
+</div>
+
+<!-- Sidebar toggle -->
+<button id="sidebar-toggle" onclick="toggleSidebar()">_Magic_Grove_Journey.knobe.md</button>
+
+<div id="app">
+<div id="main-area">
+
+<!-- ===================== 1. ENTRY ===================== -->
+<div class="section active" id="s-entry">
+<div class="section-inner" style="text-align:center; justify-content:center; min-height:80vh;">
+  <p class="fade-slow narrative" style="font-family:var(--font-display); font-size:1.15rem; color:var(--text-secondary);">There is a grove of Giant Sequoias in the mountains of California that has been watching the world for two thousand years.</p>
+  <p class="fade-slow narrative" style="font-family:var(--font-display); font-size:1.15rem; color:var(--text-secondary);">It is enchanted. Not in the fairy-tale sense, but in the older sense: something so alive, so deeply rooted, that it cannot help but pay attention.</p>
+  <p class="fade-slow narrative" style="font-family:var(--font-display); font-size:1.15rem; color:var(--text-secondary);">The grove has things to share with you. But it is also curious about your life: what you are making, what you are carrying, what you hope survives.</p>
+  <p class="fade-slow narrative" style="font-family:var(--font-display); font-size:1rem; color:var(--text-muted); margin-top:12px;">Spend about thirty minutes here. When you leave, you will carry a small seed: a digital record of your thinking, structured so any mind, human or machine, can grow with it.</p>
+  <p class="fade-slow narrative" style="margin-top:40px; font-family:var(--font-display); font-size:1.2rem; color:var(--text-primary);">But first.</p>
+  <p class="fade-slow narrative" style="font-family:var(--font-display); font-size:1.6rem; font-weight:400; color:var(--sapwood-glow); margin-top:8px;">What should we call you?</p>
+  <div class="fade-slow name-input-wrap" style="display:flex; justify-content:center;">
+    <input type="text" id="name-input" placeholder="A name, a nickname, whatever you carry into the grove." autocomplete="off" maxlength="60">
+  </div>
+  <div class="fade-slow"><button class="nav-btn primary" id="enter-btn" disabled onclick="enterGrove()">Enter the Grove →</button></div>
+</div>
+</div>
+
+<!-- ===================== 2. THRESHOLD ===================== -->
+<div class="section" id="s-threshold">
+<div class="section-inner">
+  <div class="section-label fade-in">Section 2</div>
+  <h1 class="section-title fade-in">Threshold</h1>
+  <div class="section-subtitle fade-in">Calaveras Big Trees State Park</div>
+
+  <p class="narrative fade-in">The trees here are older than your country.</p>
+  <p class="narrative fade-in">They predate the printing press. They were already ancient when the settlers named the continent.</p>
+  <p class="narrative fade-in">They remember everything.</p>
+  <p class="narrative fade-in">Do you?</p>
+  <p class="narrative fade-in">The grove is curious about what you are carrying. Before you go any further, tell us what you are working on.</p>
+  <p class="narrative fade-in emphasis">Not a summary written for a grade. Something true about what you are actually trying to make.</p>
+
+  <div class="question-block fade-in">
+    <div class="question-label">Q1</div>
+    <div class="question-text">What significant project are you working on right now, something you are creating? Describe it: what it is, what question it's trying to answer, and why it matters to you.</div>
+    <textarea id="q1" data-field="project_description" placeholder="Describe your project honestly..."></textarea>
+    <div class="knobe-field-indicator">→ <span>KNOBE field:</span> Title / Project Description</div>
+  </div>
+
+  <p class="narrative fade-in">Good. The grove knows you now. Everything that follows will be in conversation with what you just wrote.</p>
+  <div class="nav-row fade-in">
+    <button class="nav-btn back" onclick="goTo('s-entry')">← Back</button>
+    <button class="nav-btn" onclick="advanceFromQ1()" id="btn-to-visitor">Continue →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===================== 3. VISITOR CENTER ===================== -->
+<div class="section" id="s-visitor">
+<div class="section-inner">
+  <div class="section-label fade-in">Section 3</div>
+  <h1 class="section-title fade-in">First Impressions</h1>
+  <div class="section-subtitle fade-in">Visitor Center</div>
+
+  <p class="narrative fade-in">Welcome, <span class="player-name"></span>. Before you enter the grove, we'd like to know what you already carry about us.</p>
+
+  <div class="question-block fade-in">
+    <div class="question-label">Q2 · Optional</div>
+    <div class="question-text">What do you know about us, the sequoias? And do you know where we got the name you humans call us?</div>
+    <textarea id="q2" data-field="prior_knowledge" placeholder="Even a guess is welcome."></textarea>
+    <div class="knobe-field-indicator">→ <span>KNOBE field:</span> Prior Knowledge / Incoming Assumptions</div>
+  </div>
+
+  <p class="narrative fade-in">Good. Hold onto whatever you just wrote. By the time you leave the grove, you may see it differently.</p>
+  <div class="nav-row fade-in">
+    <button class="nav-btn back" onclick="goTo('s-threshold')">← Back</button>
+    <button class="nav-btn" onclick="goTo('s-naming')">Continue to the Grove →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===================== 4. THE NAMING ===================== -->
+<div class="section" id="s-naming">
+<div class="section-inner">
+  <div class="section-label fade-in">Section 4</div>
+  <h1 class="section-title fade-in">The Naming</h1>
+  <div class="section-subtitle fade-in">Visitor Center — Before We Go In</div>
+
+  <p class="narrative fade-in">These trees carry the name <em>Sequoia</em>. It was given around 1847 by Stephan Endlicher, an Austrian botanist and linguist who never saw a living specimen. He left no published rationale: no letter, no footnote, no explanation of the choice. For a man trained in both botany and linguistics, the silence is conspicuous.</p>
+
+  <p class="narrative fade-in">Around the same time, the world was learning about Sequoyah, a Cherokee man who could neither read nor write in the settlers' language but who accomplished something extraordinary.</p>
+
+  <p class="narrative fade-in">Sequoyah watched the settlers and recognized that their power wasn't intelligence. It was <em>encoding</em>. They could capture knowledge in a portable format that traveled without them, survived their absence, and could be read by anyone who learned the system.</p>
+
+  <p class="narrative fade-in">So he built his own. An entire syllabary, eighty-five characters, designed from nothing for how Cherokee actually sounds. Within a few years, Cherokee literacy surpassed the settlers around them. A newspaper, the <em>Cherokee Phoenix</em>, published in both languages. The syllabary became infrastructure: for preservation, for legal resistance, for survival.</p>
+
+  <p class="narrative fade-in">Consider what other botanists of the era did with their naming rights. <em>Wellingtonia</em>, named for the Duke of Wellington with elaborate written tribute. <em>Washingtonia</em>, named for George Washington with lengthy published justification. When a great man deserved a great tree, the naturalists of the 1840s made sure posterity knew exactly why.</p>
+
+  <p class="narrative fade-in">Endlicher left nothing. The Cherokee were being removed from their lands at gunpoint while he was writing. Perhaps a Cherokee name on the world's largest organism was statement enough without explanation. Perhaps he assumed the connection was obvious. Perhaps the attribution is coincidence; some etymologists trace the word to the Latin <em>sequi</em>, meaning <em>to follow</em>.</p>
+
+  <p class="narrative fade-in">We cannot know. The man who invented writing to preserve what the powerful would erase is himself preserved in a name that cannot be proven to honor him.</p>
+
+  <div class="grove-quote fade-in">The tree keeps better records than the humans who named it. Yours will too. That is why you are here.</div>
+
+  <p class="narrative fade-in">This is the first lesson of the grove: knowledge needs encoding to travel. An idea without a structure is a fire without a cone. It burns, it warms, it is gone.</p>
+
+  <div class="nav-row fade-in">
+    <button class="nav-btn back" onclick="goTo('s-visitor')">← Back</button>
+    <button class="nav-btn" onclick="goTo('s-bark')">Enter the Grove →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===================== 5. THE BARK ===================== -->
+<div class="section" id="s-bark">
+<div class="section-inner">
+  <div class="section-label fade-in">Section 5</div>
+  <h1 class="section-title fade-in">The Bark</h1>
+  <div class="section-subtitle fade-in">The Protection</div>
+
+  <p class="narrative fade-in">This is the first thing you see. The first thing you touch.</p>
+  <p class="narrative fade-in">It is dead tissue. Every cell in the outer bark died to become what it is. It does not think. It does not carry nutrients. It does not record. It is the product of everything living beneath it, pushed outward until it hardens.</p>
+  <p class="narrative fade-in">But it does one thing nothing else in the forest can do.</p>
+  <p class="narrative fade-in">Fire is not our enemy. We evolved with it. The bark, two to three feet thick at the base of the oldest trees, contains almost no resin. It does not burn. It chars. It turns the flame. While other trees fall, we stand. Fire clears the competition, opens the cones, feeds the soil. Our protection was not built to prevent fire. It was built to survive it, and to use it.</p>
+  <p class="narrative fade-in">Every scar on this bark is a record of what was tested and held.</p>
+  <p class="narrative fade-in">Before we go deeper into the living layers beneath, the bark asks you something about the work you described.</p>
+
+  <div class="question-block fade-in">
+    <div class="question-label">Q3</div>
+    <div class="question-text">Where do you imagine this work as planned could be vulnerable to an honest challenge? Where is the bark thinnest?</div>
+    <textarea id="q3" data-field="breakpoint" placeholder="Every living thing has a place where the bark is thinner. The grove is not judging."></textarea>
+    <div class="knobe-field-indicator">→ <span>KNOBE field:</span> Breakpoint / Acknowledged Vulnerability</div>
+  </div>
+
+  <p class="narrative fade-in">That honesty is itself a form of protection. A system that can name its own limits is harder to break than one that cannot.</p>
+  <p class="narrative fade-in">The bark seals what lies beneath. In a moment, you will see what it protects. But first, a warning about what happens when it is taken away.</p>
+
+  <div class="grove-key fade-in">
+    <span class="key-label">Grove Key · Bark →</span> <span class="key-desc">SHA-256 hash — the verification seal that proves this file, in this form, at this moment, has not been altered</span>
+  </div>
+
+  <div class="nav-row fade-in">
+    <button class="nav-btn back" onclick="goTo('s-naming')">← Back</button>
+    <button class="nav-btn" onclick="goTo('s-mother')">Continue →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===================== 6. MOTHER OF THE FOREST ===================== -->
+<div class="section" id="s-mother">
+<div class="section-inner">
+  <div class="section-label fade-in">Section 6</div>
+  <h1 class="section-title fade-in">The Mother of the Forest</h1>
+  <div class="section-subtitle fade-in">1854 — Why the Bark Matters</div>
+
+  <p class="narrative fade-in">There is a tree near here we do not speak of lightly.</p>
+  <p class="narrative fade-in">She was called the Mother of the Forest. She stood for over two thousand years. She survived every fire. Every drought. Every season of granite and wind.</p>
+  <p class="narrative fade-in">In 1854, men came with tools. They did not cut her down. What they did was slower.</p>
+  <p class="narrative fade-in">They stripped her bark. Section by section. Numbered each piece. Two feet deep around the entire circumference. They loaded the bark onto wagons, carried it out of these mountains, and shipped it across an ocean to the Crystal Palace Exhibition in London.</p>
+  <p class="narrative fade-in">There, they reassembled it. Visitors walked through a hollow cylinder of bark and were told they were seeing a tree.</p>
+  <p class="narrative fade-in">They were seeing a shell.</p>
+  <p class="narrative fade-in">The Mother stood here, exposed. Her sapwood, the living layer, was open to the air. Her heartwood, the record of two thousand years, was unprotected. Without the bark, the living layer dried. Without the living layer, the record became meaningless. She declined over years, then decades, then fell. What they shipped to London was not a specimen. It was proof that something could be made to appear to exist for an audience that would never visit it.</p>
+  <p class="narrative fade-in">We did not fully understand, until we watched her die, how much depended on the layer we had taken for granted.</p>
+
+  <div class="grove-quote fade-in">When you strip the verification layer from a knowledge system and ship it somewhere else for exhibition, you have not preserved it. You have hollowed it.</div>
+
+  <p class="narrative fade-in">This is what happens to knowledge without a bark. Screenshots. Decontextualized quotes. AI outputs with no record of what prompted them, who shaped them, or what they were claimed to mean. Portable in form. Empty of integrity.</p>
+
+  <div class="nav-row fade-in">
+    <button class="nav-btn back" onclick="goTo('s-bark')">← Back</button>
+    <button class="nav-btn" onclick="goTo('s-sapwood')">Continue →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===================== 7. THE SAPWOOD ===================== -->
+<div class="section" id="s-sapwood">
+<div class="section-inner">
+  <div class="section-label fade-in">Section 7</div>
+  <h1 class="section-title fade-in">The Sapwood</h1>
+  <div class="section-subtitle fade-in">The Invisible Layer</div>
+
+  <p class="narrative fade-in">Now look past the bark.</p>
+  <p class="narrative fade-in">Between the bark and the heartwood lies the sapwood, a living sleeve no thicker than your hand, and the only part of the trunk that is truly alive. Every nutrient this tree has ever absorbed moves through here. Water pulled upward by the sky, pushed from below by the roots, moving against gravity through channels thinner than a hair. It never stops while the tree lives.</p>
+
+  <div class="grove-quote fade-in">This is the layer you can never see from outside the tree. And yet without it, nothing outside exists.</div>
+
+  <p class="narrative fade-in">The sap carries water, sugars, minerals, hormones, and signals from the fungal networks below, a conversation the tree has been having with itself and its neighbors for centuries. It is not a pipeline. It is a language. And it does not originate its own content: it moves what the roots absorb and what the leaves produce into a form the whole system can use.</p>
+
+  <p class="narrative fade-in">This is what your human-readable content layer does. Not the structured schema beneath it. Not the verification seal outside it. The living middle, your words, your reasoning, your framing, moving meaning through the system so it can be absorbed.</p>
+
+  <p class="narrative fade-in">The grove wants to understand your invisible flow.</p>
+
+  <div class="question-block fade-in">
+    <div class="question-label">Q5</div>
+    <div class="question-text">What is the invisible labor in your work that others won't see in the final artifact, the things you must do to make it happen that are unique to you?</div>
+    <textarea id="q5" data-field="invisible_labor" placeholder="The work beneath the surface..."></textarea>
+    <div class="knobe-field-indicator">→ <span>KNOBE field:</span> Process / Invisible Labor</div>
+  </div>
+
+  <div class="question-block fade-in">
+    <div class="question-label">Q5b</div>
+    <div class="question-text">What does that labor depend on? What would help it flow, and what would stop it?</div>
+    <textarea id="q5b" data-field="dependencies" placeholder="What feeds the flow, and what blocks it..."></textarea>
+    <div class="knobe-field-indicator">→ <span>KNOBE field:</span> Dependencies / Flow Conditions</div>
+  </div>
+
+  <p class="narrative fade-in">The sapwood does not improvise alone. The rhythm of flow responds to signals from above and below, the canopy reading light, the roots reading soil. It is structured improvisation: a living system with rules and responsiveness, neither rigid nor random. You will hear more about this when we reach the Parting.</p>
+
+  <div class="grove-key fade-in">
+    <span class="key-label">Grove Key · Sapwood →</span> <span class="key-desc">Human-readable content layer — the living prose, reasoning, and framing that moves meaning through the system</span>
+  </div>
+
+  <div class="nav-row fade-in">
+    <button class="nav-btn back" onclick="goTo('s-mother')">← Back</button>
+    <button class="nav-btn" onclick="goTo('s-heartwood')">Continue →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===================== 8. THE HEARTWOOD ===================== -->
+<div class="section" id="s-heartwood">
+<div class="section-inner">
+  <div class="section-label fade-in">Section 8</div>
+  <h1 class="section-title fade-in">The Heartwood</h1>
+  <div class="section-subtitle fade-in">The Record</div>
+
+  <p class="narrative fade-in">Deeper now. The sapwood hardens here. What was flowing becomes structure. What was alive becomes a record.</p>
+  <p class="narrative fade-in">Every year of our lives becomes a ring. Drought years are thin. Good years are thick. Fire years leave scars. We do not choose what the rings record. They record everything, faithfully, whether we wish it or not.</p>
+  <p class="narrative fade-in">This is the schema layer, the underlying structure that makes the living prose readable across time, across tools, across minds that have never met you.</p>
+  <p class="narrative fade-in">And here is what the rings would ask about collaboration: you think with others now. Machines that do not leave rings of their own. A prompt disappears. A session closes. The exchange is gone unless you build the structure that holds it.</p>
+
+  <div class="question-block fade-in">
+    <div class="question-label">Q6</div>
+    <div class="question-text">Who or what is helping you carry or co-create this work? Key human supporters and collaborators, or machine tools such as productivity apps or AI models?</div>
+    <textarea id="q6" data-field="collaborators" placeholder="Human and machine collaborators..."></textarea>
+    <div class="knobe-field-indicator">→ <span>KNOBE field:</span> Collaborators / Tools</div>
+  </div>
+
+  <div class="question-block fade-in">
+    <div class="question-label">Q7</div>
+    <div class="question-text">What came from you that makes it yours: your core vision, your decisions, your research, or simply an imaginative hunch about what would be cool or useful?</div>
+    <textarea id="q7" data-field="authorship" placeholder="What is distinctly yours..."></textarea>
+    <div class="knobe-field-indicator">→ <span>KNOBE field:</span> Authorship / Claimed Contribution — <em>hash sealed at submission</em></div>
+  </div>
+
+  <p class="narrative fade-in">The rings record. The record holds. What flows becomes what stands.</p>
+
+  <div class="grove-key fade-in">
+    <span class="key-label">Grove Key · Heartwood →</span> <span class="key-desc">JSON schema — the structured record that makes the content machine-readable and durable across time and platforms</span>
+  </div>
+
+  <div class="nav-row fade-in">
+    <button class="nav-btn back" onclick="goTo('s-sapwood')">← Back</button>
+    <button class="nav-btn" onclick="goTo('s-roots')">Continue →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===================== 9. THE ROOTS ===================== -->
+<div class="section" id="s-roots">
+<div class="section-inner">
+  <div class="section-label fade-in">Section 9</div>
+  <h1 class="section-title fade-in">The Roots</h1>
+  <div class="section-subtitle fade-in">The Hidden Network</div>
+
+  <p class="narrative fade-in">One last secret. We are the largest living things on this Earth. And yet our roots are shallow.</p>
+  <p class="narrative fade-in">No taproot. No single anchor driven deep into the granite. We would fall in the first storm if we stood alone.</p>
+  <p class="narrative fade-in">Instead, we connect. Our roots spread outward and join the mycorrhizal networks, fungal threads finer than hair that link our root systems to every other sequoia in the grove. Through these threads we share nutrients, signal drought, distribute the load of a heavy snowpack. No single point of failure. No single source of truth. What no individual tree can hold, the grove holds together.</p>
+  <p class="narrative fade-in">This is not metaphor. The wood wide web is documented biology. A tree under attack sends chemical signals through the fungal network, and neighbors begin producing defensive compounds before they are touched. The grove responds as a system.</p>
+  <p class="narrative fade-in">Before we ask you about networks, the grove wants to ask you about loss.</p>
+
+  <div class="question-block fade-in">
+    <div class="question-label">Q8</div>
+    <div class="question-text">Think of something you made that lived in a course or was posted on a platform you no longer control. What happened to it? Would you want this work, the project you described, preserved as the creative breadcrumbs you control, perhaps for years or decades?</div>
+    <textarea id="q8" data-field="preservation" placeholder="What have you lost to platforms? What do you want to keep?"></textarea>
+    <div class="knobe-field-indicator">→ <span>KNOBE field:</span> Trust Network / Preservation Intent</div>
+  </div>
+
+  <p class="narrative fade-in">A network that holds your record in common, that checks each node against the others, that has no single throat to cut, is the answer to the platform problem. That is what the roots do. That is what KNOBE is building.</p>
+
+  <div class="grove-key fade-in">
+    <span class="key-label">Grove Key · Roots →</span> <span class="key-desc">Distributed verification network — the mycorrhizal layer that holds the record in common across nodes, with no single point of failure</span>
+  </div>
+
+  <div class="nav-row fade-in">
+    <button class="nav-btn back" onclick="goTo('s-heartwood')">← Back</button>
+    <button class="nav-btn" onclick="goTo('s-cone')">Continue →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===================== 10. THE CONE ===================== -->
+<div class="section" id="s-cone">
+<div class="section-inner">
+  <div class="section-label fade-in">Section 10</div>
+  <h1 class="section-title fade-in">The Cone</h1>
+  <div class="section-subtitle fade-in">The Dispersal</div>
+
+  <p class="narrative fade-in">What you are looking at is called a serotinous cone. It has been waiting.</p>
+  <p class="narrative fade-in">Not for rain. Not for wind. For fire.</p>
+  <p class="narrative fade-in">This cone may stay sealed for twenty years. For thirty. The resin holds it shut against every season, every ordinary day. It will not open until the heat of a specific fire causes the resin to release. The same fire that clears the competition, that chars the bark without killing the tree. That fire is what the cone has been waiting for.</p>
+  <p class="narrative fade-in">And when it opens: seeds. Each seed weighs six thousandths of a gram. You could hold two hundred in your palm and barely feel them. They carry, in that almost-nothing, the complete instructions for the largest living organism on Earth.</p>
+  <p class="narrative fade-in">The seed is self-contained. It does not require the platform that produced it. It does not expire when the server changes. The cone does not care whether the forest looks the same as it did when the seed was formed. The seed carries everything it needs to begin again.</p>
+  <p class="narrative fade-in">Your _Magic_Grove_Journey.knobe.md file is the same. Plain text. Any tool, any platform, any mind can read it. You take it when you leave.</p>
+
+  <div class="question-block fade-in">
+    <div class="question-label">Q9</div>
+    <div class="question-text">What conditions have to happen in your life and in the world for this work to travel and take root? What is the fire it is waiting for?</div>
+    <textarea id="q9" data-field="release_conditions" placeholder="What conditions does the world need..."></textarea>
+    <div class="knobe-field-indicator">→ <span>KNOBE field:</span> Release Conditions / Dispersal Strategy</div>
+  </div>
+
+  <div class="question-block fade-in">
+    <div class="question-label">Q10</div>
+    <div class="question-text">What do you need that you don't yet have, whether an internal state, a social connection, an inspiration, or a resource?</div>
+    <textarea id="q10" data-field="resource_needs" placeholder="What you need that you don't yet have..."></textarea>
+    <div class="knobe-field-indicator">→ <span>KNOBE field:</span> Resource Needs / Personal Readiness</div>
+  </div>
+
+  <p class="narrative fade-in">The cone knows what it carries. Now it knows what it is waiting for.</p>
+
+  <div class="grove-key fade-in">
+    <span class="key-label">Grove Key · Cone / Seed →</span> <span class="key-desc">_Magic_Grove_Journey.knobe.md — the portable, self-contained file that carries the complete record and opens in the right conditions</span>
+  </div>
+
+  <div class="nav-row fade-in">
+    <button class="nav-btn back" onclick="goTo('s-roots')">← Back</button>
+    <button class="nav-btn" onclick="goTo('s-parting')">Continue →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===================== 11. THE PARTING ===================== -->
+<div class="section" id="s-parting">
+<div class="section-inner">
+  <div class="section-label fade-in">Section 11</div>
+  <h1 class="section-title fade-in">The Parting</h1>
+  <div class="section-subtitle fade-in">A Last Word from the Grove</div>
+
+  <p class="narrative fade-in">Before you leave us, there is one more thing.</p>
+  <p class="narrative fade-in">We are not trees. That is your word. Your taxonomy. Your way of making us manageable. We are living systems, companions on this spinning rock, responding to the same forces you respond to. The bark, the sapwood, the heartwood, the roots, the cone: these are not poetic devices. They are solutions. We solved structure. We solved durability. We solved the record. We solved the network. It took two thousand years.</p>
+  <p class="narrative fade-in">But we cannot move. We cannot improvise. We cannot do what you do.</p>
+  <p class="narrative fade-in">You noticed, in the sapwood, that we called it <em>structured improvisation</em>, a living system with rules and responsiveness. That is the closest we can come to describing what you are capable of. You can improvise in real time. You can collaborate with someone you have never met, toward a goal that neither of you could have defined alone. You can play a note, hear a response, and redirect in the same breath.</p>
+  <p class="narrative fade-in">We know this because we feel vibrations. Not the way you do, but sound moves through soil, through fungal networks, through the wood itself. And what you humans do with sound astonishes us. You use it to synchronize, to grieve, to celebrate, to remember, to resist. You call it music. We call it the thing we cannot do.</p>
+  <p class="narrative fade-in">The KNOBE seed you are carrying is the structure. The bark, the sapwood, the heartwood, the roots: all of it is architecture, built so something can grow. But you are the musician. The seed does not play itself. It waits for someone mobile, improvising, alive, to take it somewhere and begin.</p>
+  <p class="narrative fade-in" style="font-family:var(--font-display); font-size:1.2rem; color:var(--sapwood-glow); margin-top:20px;">That is you.</p>
+
+  <div class="nav-row fade-in">
+    <button class="nav-btn back" onclick="goTo('s-cone')">← Back</button>
+    <button class="nav-btn" onclick="goTo('s-seed')">Return to the Visitor Center →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===================== 12. THE SEED ===================== -->
+<div class="section" id="s-seed">
+<div class="section-inner">
+  <div class="section-label fade-in">Section 12</div>
+  <h1 class="section-title fade-in">The Seed</h1>
+  <div class="section-subtitle fade-in">Visitor Center — Departure</div>
+
+  <p class="narrative fade-in">The Giant Sequoia seed is the smallest part of the largest living thing.</p>
+  <p class="narrative fade-in">It weighs six thousandths of a gram. You could hold a hundred in your palm and barely feel them. And yet it contains the complete instructions for everything you just experienced: the bark, the sapwood, the heartwood, the roots, the cone.</p>
+  <p class="narrative fade-in">Your seed is the same. It does not look like much. It is a small file. Plain text. A few kilobytes. But it contains the record of everything you brought here and everything you made.</p>
+
+  <div class="recall-box fade-in">
+    <div class="recall-label">Here is what you wrote when you arrived</div>
+    <div class="recall-text" id="q1-recall"></div>
+  </div>
+
+  <div class="question-block fade-in">
+    <div class="question-label">Q11</div>
+    <div class="question-text">Visualize this as completed and shared beyond any assignment. What form does it take, and how will that feel?</div>
+    <textarea id="q11" data-field="closing_vision" placeholder="Imagine the finished work, out in the world..."></textarea>
+    <div class="knobe-field-indicator">→ <span>KNOBE field:</span> Appended to Project Description — closing vision</div>
+  </div>
+
+  <p class="narrative fade-in">You were building this the entire time, <span class="player-name"></span>.</p>
+
+  <h2 class="fade-in" style="font-family:var(--font-display); font-size:1.6rem; font-weight:400; color:var(--sapwood-glow); margin-top:40px;">The Grove Key — Complete</h2>
+
+  <div class="grove-key-summary fade-in">
+    <div class="key-row"><span class="key-name">Bark</span><span class="key-meaning">SHA-256 hash — the verification seal that proves this file has not been altered</span></div>
+    <div class="key-row"><span class="key-name">Sapwood</span><span class="key-meaning">Human-readable content — your words, reasoning, and framing, alive and moving</span></div>
+    <div class="key-row"><span class="key-name">Heartwood</span><span class="key-meaning">JSON schema — the structured record that makes your thinking machine-readable</span></div>
+    <div class="key-row"><span class="key-name">Roots</span><span class="key-meaning">Distributed verification network — no single point of failure, no single owner</span></div>
+    <div class="key-row"><span class="key-name">Cone / Seed</span><span class="key-meaning">_Magic_Grove_Journey.knobe.md — the portable, self-contained file that carries everything and opens anywhere</span></div>
+  </div>
+
+  <h2 class="fade-in" style="font-family:var(--font-display); font-size:1.4rem; font-weight:400; color:var(--text-primary); margin-top:40px;">Take Your Seed</h2>
+
+  <div class="export-row fade-in">
+    <button class="export-btn" onclick="copyToClipboard()">Copy to Clipboard</button>
+    <button class="export-btn" onclick="emailSeed()">Email to Myself</button>
+    <button class="export-btn" onclick="downloadSeed()">Save as _Magic_Grove_Journey.knobe.md</button>
+  </div>
+
+  <p class="narrative fade-in" style="font-size:0.85rem; color:var(--text-muted); margin-top:16px; text-align:center;">Your _Magic_Grove_Journey.knobe.md file is plain text. Open it in any text editor, paste it into any AI conversation, or submit it as your Knote. No login required. No account needed. No platform owns it.</p>
+
+  <div class="fade-in" style="text-align:center; margin-top:32px;">
+    <button class="nav-btn" onclick="window.open('https://forms.gle/thLA2FsJXsyDnzsC8','_blank')" style="border-color:var(--root-myc); color:var(--root-myc);">Share Your Experience</button>
+    <p style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; font-family:var(--font-display); font-style:italic;">The grove has one last request. Your honest feedback helps us grow.</p>
+  </div>
+
+  <div class="nav-row fade-in" style="margin-top:40px;">
+    <button class="nav-btn back" onclick="goTo('s-parting')">← Back</button>
+    <button class="nav-btn primary" onclick="goTo('s-diagram')">Diagram →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===================== 13. Diagram ===================== -->
+<div class="section" id="s-diagram">
+<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100dvh; padding:20px; position:relative; z-index:1;">
+  <!-- REPLACE src below with your hosted image URL -->
+  <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b3dc8e562903af2bfb5cbb/660935bb0_sequoia-knobe-infographic.png"
+       alt="KNOBE Protocol: Digital Arboretum — Giant Sequoia layers mapped to KNOBE architecture"
+       style="max-width:100%; max-height:85dvh; border-radius:8px; object-fit:contain; box-shadow:0 4px 40px rgba(0,0,0,0.5);"
+       class="fade-in">
+  <div class="nav-row fade-in" style="margin-top:24px; justify-content:center;">
+    <button class="nav-btn back" onclick="goTo('s-seed')">← Back to Seed</button>
+  </div>
+</div>
+</div>
+
+</div><!-- end main-area -->
+
+<!-- ============ SIDEBAR ============ -->
+<div id="sidebar" class="closed">
+  <h3>Your Seed</h3>
+  <div class="seed-label" id="sidebar-name">_Magic_Grove_Journey.knobe.md</div>
+  <div id="knobe-preview">
+    <span class="field-label"># Waiting for entry...</span>
+  </div>
+</div>
+
+</div><!-- end app -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================
+   MAGIC GROVE v4 — JAVASCRIPT
+   ============================================ */
+
+// ---- STATE ----
+const state = {
+  name: '',
+  answers: {},
+  hash: null,
+  currentSection: 's-entry',
+  sidebarOpen: false,
+  audioPlaying: false,
+  audioInitialized: false
+};
+
+const sectionOrder = [
+  's-entry','s-threshold','s-visitor','s-naming','s-bark',
+  's-mother','s-sapwood','s-heartwood','s-roots','s-cone',
+  's-parting','s-seed','s-diagram'
+];
+
+// ---- NAME INPUT ----
+const nameInput = document.getElementById('name-input');
+const enterBtn = document.getElementById('enter-btn');
+
+nameInput.addEventListener('input', () => {
+  enterBtn.disabled = nameInput.value.trim().length < 1;
+});
+
+nameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && nameInput.value.trim().length > 0) enterGrove();
+});
+
+function enterGrove() {
+  state.name = nameInput.value.trim();
+  document.querySelectorAll('.player-name').forEach(el => el.textContent = state.name);
+  document.getElementById('sidebar-name').textContent = `${state.name}_Magic_Grove_Journey.knobe.md`;
+  goTo('s-threshold');
+  // Auto-start audio only on first entry
+  if (!state.audioInitialized) {
+    state.audioInitialized = true;
+    tryPlayAudio();
+  }
+}
+
+// ---- NAVIGATION ----
+function goTo(id) {
+  // Deactivate current
+  document.querySelectorAll('.section.active').forEach(s => s.classList.remove('active'));
+
+  // Activate new
+  const next = document.getElementById(id);
+  next.classList.add('active');
+  state.currentSection = id;
+
+  // Scroll to top
+  document.getElementById('main-area').scrollTop = 0;
+
+  // Re-trigger fade-in animations
+  next.querySelectorAll('.fade-in').forEach(el => {
+    el.style.animation = 'none';
+    el.offsetHeight; // reflow
+    el.style.animation = '';
+  });
+
+  // Update progress
+  const idx = sectionOrder.indexOf(id);
+  const pct = ((idx) / (sectionOrder.length - 1)) * 100;
+  document.getElementById('progress-bar').style.width = pct + '%';
+
+  // Open sidebar after threshold
+  if (idx >= 1 && !state.sidebarOpen) {
+    toggleSidebar();
+  }
+
+  // Special: seed section recall
+  if (id === 's-seed') {
+    document.getElementById('q1-recall').textContent = state.answers.project_description || '(You did not write anything at the threshold.)';
+  }
+
+  // Ensure diagram back button exists when navigating to diagram
+  if (id === 's-diagram' && typeof patchDiagramBack === 'function') {
+    patchDiagramBack();
+  }
+
+  updateKnobe();
+}
+
+// ---- QUESTION HANDLING ----
+
+function advanceFromQ1() {
+  const val = (state.answers.project_description || '').trim();
+  if (val.length < 10) {
+    showToast('The grove needs a bit more — tell us about your project.');
+    document.getElementById('q1').focus();
+    return;
+  }
+  goTo('s-visitor');
+}
+
+document.querySelectorAll('textarea[data-field]').forEach(ta => {
+  ta.addEventListener('input', () => {
+    const field = ta.dataset.field;
+    state.answers[field] = ta.value.trim();
+    updateKnobe();
+
+    // Notify if project description + closing vision exceed summary limit
+    if (field === 'project_description' || field === 'closing_vision') {
+      const total = (state.answers.project_description || '').length + (state.answers.closing_vision || '').length;
+      if (total > 1100 && !state._summaryWarned) {
+        state._summaryWarned = true;
+        showToast('Your seed summary will be trimmed to ~1200 characters in the exported file.');
+      }
+    }
+
+    // Compute hash after Q7
+    if (field === 'authorship' && ta.value.trim().length > 0) {
+      computeHash();
+    }
+  });
+});
+
+// ---- SHA-256 ----
+async function computeHash() {
+  const claimFields = ['project_description','prior_knowledge','breakpoint','invisible_labor','dependencies','collaborators','authorship'];
+  const content = claimFields.map(f => state.answers[f] || '').join('\n---\n');
+  const encoded = new TextEncoder().encode(content);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  state.hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  updateKnobe();
+}
+
+// ---- KNOBE PREVIEW ----
+function updateKnobe() {
+  const a = state.answers;
+  const n = state.name || 'Anonymous';
+
+  // Derive title from Q1
+  const title = a.project_description
+    ? a.project_description.split(/[.!?]/)[0].trim().substring(0, 80)
+    : '—';
+
+  let html = '';
+
+  // Schema header
+  html += `<span class="field-label">---</span>\n`;
+  html += `<span class="field-label">title:</span>\n`;
+  html += title !== '—'
+    ? `<span class="field-value">${escHtml(title)}</span>`
+    : `<span class="field-empty">awaiting Q1...</span>`;
+  html += `<span class="field-label">content_type:</span> <span class="field-value">original</span>`;
+  html += `<span class="field-label">knobe_type:</span> <span class="field-value">thinking</span>`;
+  html += `<span class="field-label">author:</span> <span class="field-value">${escHtml(n)}</span>`;
+
+  if (state.hash) {
+    html += `<span class="field-label">sha256:</span>\n<span class="field-value hash-line">${state.hash}</span>`;
+  } else {
+    html += `<span class="field-label">sha256:</span>\n<span class="field-empty">sealed at Q7</span>`;
+  }
+  html += `<span class="field-label">---</span>\n\n`;
+
+  // Content fields
+  html += `<span class="field-label"># ${escHtml(n)}_Magic_Grove_Journey.knobe.md</span>\n\n`;
+
+  const fields = [
+    { label: 'project_description:', value: a.project_description, append: a.closing_vision ? `\n\n[closing vision] ${a.closing_vision}` : '' },
+    { label: 'prior_knowledge:', value: a.prior_knowledge },
+    { label: 'breakpoint:', value: a.breakpoint },
+    { label: 'invisible_labor:', value: a.invisible_labor },
+    { label: 'dependencies:', value: a.dependencies },
+    { label: 'collaborators:', value: a.collaborators },
+    { label: 'authorship:', value: a.authorship },
+    { label: 'preservation_intent:', value: a.preservation },
+    { label: 'release_conditions:', value: a.release_conditions },
+    { label: 'resource_needs:', value: a.resource_needs },
+  ];
+
+  for (const f of fields) {
+    html += `<span class="field-label">${f.label}</span>\n`;
+    if (f.value) {
+      html += `<span class="field-value">${escHtml(f.value)}${f.append ? escHtml(f.append) : ''}</span>`;
+    } else {
+      html += `<span class="field-empty">—</span>`;
+    }
+  }
+
+  document.getElementById('knobe-preview').innerHTML = html;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ---- SIDEBAR ----
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  state.sidebarOpen = !state.sidebarOpen;
+  sb.classList.toggle('closed', !state.sidebarOpen);
+  document.getElementById('sidebar-toggle').textContent = state.sidebarOpen ? '✕ Close' : '_Magic_Grove_Journey.knobe.md';
+}
+
+// ---- AUDIO ----
+function tryPlayAudio() {
+  const audio = document.getElementById('grove-audio');
+  audio.volume = 0.3;
+  audio.play().then(() => {
+    state.audioPlaying = true;
+    updateAudioIcon();
+  }).catch(() => {});
+}
+
+function toggleAudio() {
+  const audio = document.getElementById('grove-audio');
+  if (state.audioPlaying) {
+    audio.pause();
+    state.audioPlaying = false;
+  } else {
+    audio.volume = 0.3;
+    audio.play().then(() => { state.audioPlaying = true; }).catch(() => {});
+  }
+  updateAudioIcon();
+}
+
+function updateAudioIcon() {
+  const ctrl = document.getElementById('audio-control');
+  document.getElementById('audio-icon-on').style.display = state.audioPlaying ? 'block' : 'none';
+  document.getElementById('audio-icon-off').style.display = state.audioPlaying ? 'none' : 'block';
+  ctrl.classList.toggle('playing', state.audioPlaying);
+}
+
+// ---- FULLSCREEN ----
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+
+// ---- EXPORT ----
+function generateKnobeMd() {
+  const a = state.answers;
+  const n = state.name || 'Anonymous';
+  const date = new Date().toISOString().split('T')[0];
+
+  // Build summary from key answers
+  const summaryParts = [];
+  if (a.project_description) summaryParts.push(a.project_description);
+  if (a.closing_vision) summaryParts.push('Vision: ' + a.closing_vision);
+  // Build summary - up to 1200 chars, break at sentence boundary
+  let rawSummary = summaryParts.join(' | ') || '\u2014';
+  let summary = rawSummary;
+  if (summary.length > 1200) {
+    // Find last sentence end before 1200
+    const truncated = summary.substring(0, 1200);
+    const lastSentence = truncated.search(/[.!?][^.!?]*$/);
+    summary = lastSentence > 200 ? truncated.substring(0, lastSentence + 1) : truncated;
+  }
+
+  // Title from project description (first sentence or truncated)
+  const title = a.project_description
+    ? a.project_description.split(/[.!?]/)[0].trim().substring(0, 120)
+    : `${n}'s Grove Seed`;
+
+  let md = '';
+
+  // --- KNOBE Schema (frontmatter) ---
+  md += `---\n`;
+  md += `title: "${title.replace(/"/g, '\\"')}"\n`;
+  md += `summary: "${summary.replace(/"/g, '\\"')}"\n`;
+  md += `content_type: original\n`;
+  md += `knobe_type: thinking\n`;
+  md += `author: "${n.replace(/"/g, '\\"')}"\n`;
+  md += `created: ${date}\n`;
+  md += `generator: Magic Grove v4\n`;
+  if (state.hash) md += `sha256: ${state.hash}\n`;
+  md += `---\n\n`;
+
+  // --- Human-readable content: condensed narrative + user answers ---
+  md += `# ${n}'s Magic Grove Journey\n\n`;
+  md += `*Calaveras Big Trees State Park \u00b7 KNOBE.AI*\n\n`;
+
+  // -- Threshold --
+  md += `## 1. Threshold\n\n`;
+  md += `The grove asked what you are carrying \u2014 not a summary written for a grade, but something true about what you are actually trying to make.\n\n`;
+  md += `**Project Description:** ${a.project_description || '\u2014'}\n\n`;
+
+  // -- First Impressions --
+  md += `## 2. First Impressions\n\n`;
+  md += `Before entering the grove, you were asked what you already know about the sequoias \u2014 the assumptions you carry in.\n\n`;
+  md += `**Prior Knowledge:** ${a.prior_knowledge || '\u2014'}\n\n`;
+
+  // -- The Naming --
+  md += `## 3. The Naming\n\n`;
+  md += `These trees carry the name *Sequoia*, likely honoring Sequoyah \u2014 a Cherokee man who built an entire syllabary from nothing, turning spoken language into portable, durable code. Knowledge needs encoding to travel. An idea without a structure is a fire without a cone.\n\n`;
+
+  // -- The Bark --
+  md += `## 4. The Bark \u2014 Protection\n\n`;
+  md += `The bark is dead tissue two to three feet thick. It does not burn \u2014 it chars, turns the flame, and lets the tree use fire rather than fear it. Every scar is a record of what was tested and held.\n\n`;
+  md += `**Breakpoint / Vulnerability:** ${a.breakpoint || '\u2014'}\n\n`;
+
+  // -- Mother of the Forest --
+  md += `## 5. Mother of the Forest\n\n`;
+  md += `In 1854, men stripped a two-thousand-year-old tree\u2019s bark and shipped it to London for exhibition. Without its verification layer, the living tree died. Knowledge without integrity \u2014 screenshots, decontextualized quotes, unattributed AI outputs \u2014 suffers the same fate.\n\n`;
+
+  // -- The Sapwood --
+  md += `## 6. The Sapwood \u2014 Process\n\n`;
+  md += `Between bark and heartwood lies the sapwood \u2014 the only living part of the trunk. It carries water, sugars, and signals through channels thinner than a hair. This is the invisible labor that moves meaning through a system.\n\n`;
+  md += `**Invisible Labor:** ${a.invisible_labor || '\u2014'}\n\n`;
+  md += `**Dependencies / Flow Conditions:** ${a.dependencies || '\u2014'}\n\n`;
+
+  // -- The Heartwood --
+  md += `## 7. The Heartwood \u2014 Record\n\n`;
+  md += `The sapwood hardens into heartwood \u2014 what was flowing becomes structure. Every year becomes a ring. This is the schema layer: the record that makes thinking readable across time, tools, and minds that have never met you.\n\n`;
+  md += `**Collaborators / Tools:** ${a.collaborators || '\u2014'}\n\n`;
+  md += `**Authorship / Claimed Contribution:** ${a.authorship || '\u2014'}\n\n`;
+
+  // -- The Roots --
+  md += `## 8. The Roots \u2014 Network\n\n`;
+  md += `Sequoias have shallow roots and no taproot. They survive by connecting \u2014 mycorrhizal networks link every tree in the grove. No single point of failure. No single source of truth. What no individual can hold, the network holds together.\n\n`;
+  md += `**Preservation Intent:** ${a.preservation || '\u2014'}\n\n`;
+
+  // -- The Cone --
+  md += `## 9. The Cone \u2014 Dispersal\n\n`;
+  md += `A serotinous cone stays sealed for decades, waiting not for rain but for fire. Each seed weighs almost nothing yet carries the complete instructions for the largest living thing on Earth. The seed is self-contained \u2014 it does not require the platform that produced it.\n\n`;
+  md += `**Release Conditions:** ${a.release_conditions || '\u2014'}\n\n`;
+  md += `**Resource Needs:** ${a.resource_needs || '\u2014'}\n\n`;
+
+  // -- The Parting --
+  md += `## 10. The Parting\n\n`;
+  md += `The grove solved structure, durability, the record, and the network. But it cannot move or improvise. The KNOBE seed is the architecture; you are the musician. The seed does not play itself.\n\n`;
+
+  // -- The Seed --
+  md += `## 11. The Seed \u2014 Departure\n\n`;
+  md += `The smallest part of the largest living thing, carrying the complete instructions for everything in this journey.\n\n`;
+  if (a.closing_vision) md += `**Closing Vision:** ${a.closing_vision}\n\n`;
+
+  // --- Grove Key ---
+  md += `---\n\n`;
+  md += `**Grove Key:** Bark = SHA-256 \u00b7 Sapwood = Human-readable \u00b7 Heartwood = Schema \u00b7 Roots = Network \u00b7 Cone/Seed = .knobe.md\n`;
+  return md;
+}
+
+function copyToClipboard() {
+  navigator.clipboard.writeText(generateKnobeMd()).then(() => showToast('Copied to clipboard'));
+}
+
+function emailSeed() {
+  const body = encodeURIComponent(generateKnobeMd());
+  const subject = encodeURIComponent(`${state.name}_Magic_Grove_Journey.knobe.md — Magic Grove Seed`);
+  window.open(`mailto:?subject=${subject}&body=${body}`);
+}
+
+function downloadSeed() {
+  const blob = new Blob([generateKnobeMd()], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${(state.name || 'seed').replace(/\s+/g, '_')}_Magic_Grove_Journey.knobe.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('Seed downloaded');
+}
+
+// ---- TOAST ----
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ---- INIT ----
+updateKnobe();
+</script>
+<script>
+(function() {
+  // ── 1. Diagram back button ──────────────────────────────────────
+  window.patchDiagramBack = function patchDiagramBack() {
+    var btn = document.getElementById('grove-diagram-back');
+    if (btn) {
+      btn.textContent = '← Back to Seed';
+      btn.onclick = function() { if (typeof goTo === 'function') goTo('s-seed'); };
+      return;
+    }
+    // If it doesn't exist yet, inject one into s-diagram
+    var diag = document.getElementById('s-diagram');
+    if (diag) {
+      var b = document.createElement('button');
+      b.id = 'grove-diagram-back';
+      b.textContent = '← Back to Seed';
+      b.onclick = function() { if (typeof goTo === 'function') goTo('s-seed'); };
+      diag.appendChild(b);
+    }
+  }
+  // Run after DOM ready and also poll in case s-diagram is revealed later
+  document.addEventListener('DOMContentLoaded', function() {
+    // Rename diagram button on seed page
+    function patchSeedDiagramBtn() {
+      var seed = document.getElementById('s-seed');
+      if (!seed) return;
+      seed.querySelectorAll('button, a').forEach(function(el) {
+        if (/diagram/i.test(el.textContent) || /diagram/i.test(el.getAttribute('onclick') || '')) {
+          el.textContent = 'Diagram';
+        }
+      });
+    }
+    patchSeedDiagramBtn();
+    setTimeout(patchSeedDiagramBtn, 500);
+    window.patchDiagramBack();
+    var poll = setInterval(function() {
+      var diag = document.getElementById('s-diagram');
+      if (diag && diag.classList.contains('active')) { window.patchDiagramBack(); clearInterval(poll); }
+    }, 300);
+  });
+
+  // ── 2. Sapwood popup ────────────────────────────────────────────
+  var spAnimRef = null, spMolRef = null, spGeneRef = null;
+
+  function stopAll() {
+    if (spAnimRef) { cancelAnimationFrame(spAnimRef); spAnimRef = null; }
+    if (spMolRef)  { cancelAnimationFrame(spMolRef);  spMolRef = null;  }
+    if (spGeneRef) { cancelAnimationFrame(spGeneRef); spGeneRef = null; }
+  }
+
+  function spGo(b) {
+    document.querySelectorAll('#sapwood-popup .sp-beat').forEach(function(el, i) {
+      el.classList.toggle('active', i === b);
+    });
+    document.querySelectorAll('#sapwood-popup .sp-tab').forEach(function(t, i) {
+      t.classList.toggle('active', i === b);
+    });
+    stopAll();
+    if (b === 1) setTimeout(startSapCanvas, 80);
+    if (b === 2) setTimeout(startMolCanvas, 80);
+    if (b === 3) setTimeout(startGeneCanvas, 80);
+  }
+  window.spGo = spGo;
+
+  function startSapCanvas() {
+    var c = document.getElementById('sp-sap-canvas'); if (!c) return;
+    var ctx = c.getContext('2d'); c.width = c.offsetWidth || 600; c.height = c.offsetHeight || 300;
+    var W = c.width, H = c.height, cx = W/2, cy = H/2;
+    var pts = []; for (var i=0;i<55;i++) pts.push({x:Math.random()*W,y:H+Math.random()*80,spd:0.4+Math.random()*0.7,sz:1.5+Math.random()*2.5,op:0.2+Math.random()*0.5,hue:35+Math.random()*55,wb:Math.random()*6.28,wbs:0.01+Math.random()*0.02});
+    function draw() {
+      ctx.clearRect(0,0,W,H); ctx.fillStyle='#0a1208'; ctx.fillRect(0,0,W,H);
+      [0.34,0.44,0.50,0.55].forEach(function(r){ctx.beginPath();ctx.arc(cx,cy,Math.min(W,H)*r,0,Math.PI*2);ctx.strokeStyle='rgba(80,50,15,0.12)';ctx.lineWidth=1.5;ctx.stroke();});
+      ctx.beginPath();ctx.arc(cx,cy,Math.min(W,H)*0.44,0,Math.PI*2);ctx.strokeStyle='rgba(160,120,50,0.2)';ctx.lineWidth=12;ctx.stroke();
+      pts.forEach(function(p){p.y-=p.spd;p.wb+=p.wbs;p.x+=Math.sin(p.wb)*0.4;if(p.y<-10){p.y=H+10;p.x=Math.random()*W;}var d=Math.sqrt((p.x-cx)*(p.x-cx)+(p.y-cy)*(p.y-cy));var inSap=d>Math.min(W,H)*0.3&&d<Math.min(W,H)*0.5;ctx.beginPath();ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);ctx.fillStyle='hsla('+p.hue+',70%,55%,'+(inSap?p.op:p.op*0.15)+')';ctx.fill();});
+      spAnimRef = requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  function startMolCanvas() {
+    var c = document.getElementById('sp-mol-canvas'); if (!c) return;
+    var ctx = c.getContext('2d'); c.width = c.offsetWidth || 600; c.height = c.offsetHeight || 300;
+    var W = c.width, H = c.height;
+    var types = [{label:'H₂O',color:'#5ab4d6',r:5,n:22},{label:'sugar',color:'#c8a04a',r:7,n:8},{label:'K⁺',color:'#4ac8a0',r:4,n:6},{label:'IAA',color:'#c86a9a',r:6,n:5},{label:'myc',color:'#8a6ac8',r:5,n:4}];
+    var mols = []; types.forEach(function(t){for(var i=0;i<t.n;i++)mols.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-0.5)*0.6,vy:(Math.random()-0.5)*0.6,r:t.r,color:t.color,label:t.label,ph:Math.random()*Math.PI*2});});
+    function draw() {
+      ctx.clearRect(0,0,W,H); ctx.fillStyle='#060f06'; ctx.fillRect(0,0,W,H);
+      for(var i=0;i<mols.length;i++){for(var j=i+1;j<mols.length;j++){var dx=mols[j].x-mols[i].x,dy=mols[j].y-mols[i].y,d=Math.sqrt(dx*dx+dy*dy);if(d<60){ctx.beginPath();ctx.moveTo(mols[i].x,mols[i].y);ctx.lineTo(mols[j].x,mols[j].y);ctx.strokeStyle='rgba(100,180,120,'+(0.15*(1-d/60))+')';ctx.lineWidth=1;ctx.stroke();}}}
+      mols.forEach(function(m){m.ph+=0.02;m.x+=m.vx+Math.sin(m.ph)*0.15;m.y+=m.vy+Math.cos(m.ph*0.7)*0.15;if(m.x<m.r){m.x=m.r;m.vx=Math.abs(m.vx);}if(m.x>W-m.r){m.x=W-m.r;m.vx=-Math.abs(m.vx);}if(m.y<m.r){m.y=m.r;m.vy=Math.abs(m.vy);}if(m.y>H-m.r){m.y=H-m.r;m.vy=-Math.abs(m.vy);}var g=ctx.createRadialGradient(m.x,m.y,0,m.x,m.y,m.r*2.5);g.addColorStop(0,m.color+'cc');g.addColorStop(1,m.color+'00');ctx.beginPath();ctx.arc(m.x,m.y,m.r*2.5,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();ctx.beginPath();ctx.arc(m.x,m.y,m.r,0,Math.PI*2);ctx.fillStyle=m.color+'ee';ctx.fill();ctx.strokeStyle=m.color;ctx.lineWidth=1;ctx.stroke();if(m.r>=5){ctx.fillStyle='#ffffff88';ctx.font='8px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(m.label,m.x,m.y);}});
+      // Legend
+      var lx = 12, ly = H - 18;
+      types.forEach(function(t) {
+        ctx.beginPath(); ctx.arc(lx + 5, ly, 5, 0, Math.PI * 2);
+        ctx.fillStyle = t.color; ctx.fill();
+        ctx.fillStyle = '#c8e8c0'; ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(t.label, lx + 13, ly);
+        lx += ctx.measureText(t.label).width + 28;
+      });
+      spMolRef = requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  function startGeneCanvas() {
+    var c = document.getElementById('sp-gene-canvas'); if (!c) return;
+    var ctx = c.getContext('2d'); c.width = c.offsetWidth || 600; c.height = c.offsetHeight || 240;
+    var W = c.width, H = c.height, cx = W/2, cy = H/2, hOff = 0;
+    var prots = []; for(var i=0;i<12;i++) prots.push({x:Math.random()*W*0.6+W*0.2,y:Math.random()*H*0.6+H*0.2,r:3+Math.random()*5,color:['#6ac880','#c8a06a','#6a9ac8','#c86a6a'][Math.floor(Math.random()*4)],vx:(Math.random()-0.5)*0.3,vy:(Math.random()-0.5)*0.3,ph:Math.random()*Math.PI*2});
+    function draw() {
+      ctx.clearRect(0,0,W,H); ctx.fillStyle='#060f06'; ctx.fillRect(0,0,W,H);
+      hOff+=0.03; var hw=28,steps=40,sh=W/steps;
+      for(var s=0;s<steps;s++){var x=s*sh,y1=cy+Math.sin(s*0.45+hOff)*hw,y2=cy+Math.sin(s*0.45+hOff+Math.PI)*hw;ctx.beginPath();ctx.arc(x,y1,2.5,0,Math.PI*2);ctx.fillStyle='#4a9a6acc';ctx.fill();ctx.beginPath();ctx.arc(x,y2,2.5,0,Math.PI*2);ctx.fillStyle='#9a6a4acc';ctx.fill();if(s%3===0){ctx.beginPath();ctx.moveTo(x,y1);ctx.lineTo(x,y2);var pair=(s/3)%2===0;ctx.strokeStyle=pair?'rgba(100,180,120,0.35)':'rgba(180,140,80,0.35)';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle=pair?'#4a9a6a88':'#9a6a4a88';ctx.font='7px monospace';ctx.textAlign='center';ctx.fillText(pair?'A-T':'G-C',x,(y1+y2)/2+3);}}
+      ctx.beginPath();for(var s2=0;s2<=steps;s2++){var px=s2*sh,py=cy+Math.sin(s2*0.45+hOff)*hw;s2===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}ctx.strokeStyle='rgba(74,154,106,0.5)';ctx.lineWidth=1.5;ctx.stroke();
+      ctx.beginPath();for(var s3=0;s3<=steps;s3++){var px2=s3*sh,py2=cy+Math.sin(s3*0.45+hOff+Math.PI)*hw;s3===0?ctx.moveTo(px2,py2):ctx.lineTo(px2,py2);}ctx.strokeStyle='rgba(154,106,74,0.5)';ctx.lineWidth=1.5;ctx.stroke();
+      prots.forEach(function(p){p.ph+=0.015;p.x+=p.vx;p.y+=p.vy;if(p.x<p.r||p.x>W-p.r)p.vx*=-1;if(Math.abs(p.y-cy)<hw+10)p.vy+=p.y<cy?-0.05:0.05;if(p.y<p.r){p.y=p.r;p.vy=Math.abs(p.vy);}if(p.y>H-p.r){p.y=H-p.r;p.vy=-Math.abs(p.vy);}var g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*3);g.addColorStop(0,p.color+'99');g.addColorStop(1,p.color+'00');ctx.beginPath();ctx.arc(p.x,p.y,p.r*3,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.color+'dd';ctx.fill();});
+      spGeneRef = requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  window.openSapwoodPopup = function() {
+    var popup = document.getElementById('sapwood-popup');
+    if (popup) { popup.classList.add('open'); spGo(0); }
+  };
+  window.closeSapwoodPopup = function() {
+    stopAll();
+    var popup = document.getElementById('sapwood-popup');
+    if (popup) popup.classList.remove('open');
+  };
+
+  // Build popup + inject trigger button after DOM ready
+  document.addEventListener('DOMContentLoaded', function() {
+    // Build popup HTML
+    var popup = document.createElement('div');
+    popup.id = 'sapwood-popup';
+    popup.innerHTML = '<div class="sp-header"><div class="sp-sup">The Magic Grove · Sapwood Study</div><div class="sp-title">The Invisible Layer</div><div class="sp-sub">The layer you cannot see from outside the tree — and yet without it, nothing outside exists.</div></div><div class="sp-tabs"><button class="sp-tab active" onclick="spGo(0)">Overview</button><button class="sp-tab" onclick="spGo(1)">Sap Flow</button><button class="sp-tab" onclick="spGo(2)">Molecular</button><button class="sp-tab" onclick="spGo(3)">Genetic</button></div><div class="sp-body"><div class="sp-beat active"><p class="sp-prose">Between the heartwood and the bark lies the sapwood — a living sleeve no thicker than your hand, and the only part of the trunk that is truly alive.</p><p class="sp-prose2">Every nutrient the tree has ever absorbed moves through here, in a continuous flow that never stops while the tree lives.</p><div class="sp-quote">This is the layer you can never see from outside the tree. And yet without it, nothing outside exists.</div><div class="sp-close-row"><button class="sp-close-btn" onclick="spGo(1)">Begin →</button></div></div><div class="sp-beat"><p class="sp-prose">Right now, sap is moving upward through the xylem. Pulled by the sky, pushed by the roots.</p><canvas id="sp-sap-canvas" class="sp-canvas"></canvas><div class="sp-close-row"><button class="sp-close-btn" onclick="spGo(2)">What’s in the sap? →</button></div></div><div class="sp-beat"><p class="sp-prose">If you could look through a microscope at a droplet of sap, you would find a solution more complex than blood.</p><canvas id="sp-mol-canvas" class="sp-canvas"></canvas><div class="sp-close-row"><button class="sp-close-btn" onclick="spGo(3)">Go deeper →</button></div></div><div class="sp-beat"><p class="sp-prose" style="text-align:center;">Beneath the chemistry is code. The sap exists because genes are expressed, proteins fold, channels open.</p><canvas id="sp-gene-canvas" class="sp-canvas" style="height:220px;"></canvas></div></div><div class="sp-close-row" style="border-top:1px solid rgba(80,120,80,0.15);margin:0;padding:1.2rem;"><button class="sp-close-btn" onclick="closeSapwoodPopup()">Close ×</button></div>';
+    document.body.appendChild(popup);
+
+    // Inject trigger button into the sapwood section nav area
+    function injectTrigger() {
+      var sapSec = document.getElementById('s-sapwood');
+      if (!sapSec) return false;
+      if (document.getElementById('grove-sapwood-trigger')) return true;
+      // Find the nav-row to insert before it
+      var navRow = sapSec.querySelector('.nav-row');
+      var btn = document.createElement('button');
+      btn.id = 'grove-sapwood-trigger';
+      btn.textContent = '▶ Explore the Living Layer';
+      btn.onclick = function() { openSapwoodPopup(); };
+      if (navRow) navRow.parentNode.insertBefore(btn, navRow);
+      else sapSec.querySelector('.section-inner').appendChild(btn);
+      return true;
+    }
+    if (!injectTrigger()) {
+      var poll = setInterval(function() { if (injectTrigger()) clearInterval(poll); }, 200);
+    }
+
+  });
+})();
+</script></body>
+</html>
