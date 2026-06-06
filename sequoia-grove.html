@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>The Sequoia Grove — A Walkable KNOBE Journey</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,6 +33,10 @@
   @keyframes introRise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
   /* reticle dot for orientation */
   .gaze-pip{background:rgba(14,20,10,0.5);padding:5px 12px;border-radius:999px}
+
+  /* visually-hidden helper for accessible names that stay off-screen */
+  .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
   /* Heavy backdrop-filter over the live WebGL canvas stalls the slide
      transitions — drop it on the sliding panels and lean on opacity instead. */
@@ -71,9 +75,10 @@
       <h1>The Grove Has<br />Been Waiting</h1>
       <p class="lede l1">There is a grove of giant sequoias that has watched the world for two thousand years. It is curious about your work — what you are making, what you are carrying, what you hope survives.</p>
       <p class="lede l2">Walk among the trees. At each one, the grove asks you something true, and gathers your answers into a single seed you carry out.</p>
-      <div class="ask">What should we call you?</div>
+      <div class="ask" id="name-ask">What should we call you?</div>
       <div class="name-wrap">
-        <input type="text" id="name-input" maxlength="60" autocomplete="off" placeholder="A name to carry into the grove" />
+        <label for="name-input" class="sr-only">What should we call you?</label>
+        <input type="text" id="name-input" maxlength="60" autocomplete="off" aria-labelledby="name-ask" placeholder="A name to carry into the grove" />
         <button class="btn" id="enter-btn" disabled>Enter the Grove →</button>
       </div>
     </div>
@@ -94,24 +99,24 @@
     </button>
 
     <!-- tools -->
-    <div class="hud-tools">
-      <a class="tool" id="tool-home" href="index.html" title="Switch view · back to entrance">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
+    <nav class="hud-tools" aria-label="Grove tools">
+      <a class="tool" id="tool-home" href="index.html" aria-label="Switch view — back to entrance">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
       </a>
-      <div class="tool" id="tool-path" title="Show the path to your next stop">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20s-5-1-5-5 4-4 7-4 6-1 6-4-4-4-4-4"/><circle cx="7" cy="20" r="1.4" fill="currentColor" stroke="none"/><circle cx="13" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="17" cy="5" r="1.2" fill="currentColor" stroke="none"/></svg>
-      </div>
-      <div class="tool" id="tool-seed" title="Your seed">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-3-7-7 0-5 7-11 7-11s7 6 7 11c0 4-3 7-7 7z"/><path d="M12 21v-9M9 14l3-2 3 2"/></svg>
-      </div>
-      <div class="tool" id="tool-audio" title="Ambient sound">
-        <svg class="a-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14"/></svg>
-        <svg class="a-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M22 9l-6 6M16 9l6 6"/></svg>
-      </div>
-      <div class="tool" id="tool-fs" title="Fullscreen">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
-      </div>
-    </div>
+      <button type="button" class="tool" id="tool-path" aria-label="Show the path to your next stop">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20s-5-1-5-5 4-4 7-4 6-1 6-4-4-4-4-4"/><circle cx="7" cy="20" r="1.4" fill="currentColor" stroke="none"/><circle cx="13" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="17" cy="5" r="1.2" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button type="button" class="tool" id="tool-seed" aria-label="Open your seed panel">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-3-7-7 0-5 7-11 7-11s7 6 7 11c0 4-3 7-7 7z"/><path d="M12 21v-9M9 14l3-2 3 2"/></svg>
+      </button>
+      <button type="button" class="tool" id="tool-audio" aria-label="Toggle ambient sound">
+        <svg class="a-on" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14"/></svg>
+        <svg class="a-off" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M22 9l-6 6M16 9l6 6"/></svg>
+      </button>
+      <button type="button" class="tool" id="tool-fs" aria-label="Toggle fullscreen">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+      </button>
+    </nav>
 
     <!-- movement hint -->
     <div class="hud-hint" id="hud-hint">
@@ -119,7 +124,7 @@
       <div style="margin-top:6px"><b>click</b> ground to walk there &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Q</b> gaze up</div>
       <div style="margin-top:6px"><b>I</b> &nbsp;or click&nbsp; to reflect at a glowing tree &nbsp;·&nbsp; <b>Enter</b> throw a rock</div>
       <div style="margin-top:6px">follow the <b>golden footpath</b> to your next stop</div>
-      <span class="dismiss" id="hint-dismiss">dismiss</span>
+      <button type="button" class="dismiss" id="hint-dismiss">dismiss</button>
     </div>
 
     <!-- gaze pip -->
@@ -131,24 +136,24 @@
 
   <!-- ====================== TASK PANEL ====================== -->
   <div id="scrim"></div>
-  <aside id="task">
+  <aside id="task" role="dialog" aria-modal="true" aria-labelledby="task-title" aria-hidden="true">
     <div class="task-head">
       <div class="layer" id="task-layer">Layer</div>
       <h2 id="task-title">Station</h2>
       <div class="sub" id="task-sub">subtitle</div>
-      <div class="task-close" id="task-close" title="Close (Esc)">✕</div>
+      <button type="button" class="task-close" id="task-close" aria-label="Close (Esc)">✕</button>
     </div>
     <div class="task-body" id="task-body"></div>
     <div class="task-foot">
-      <span class="saved" id="task-saved">✓ saved to your seed</span>
+      <span class="saved" id="task-saved" role="status" aria-live="polite">✓ saved to your seed</span>
       <button class="btn ghost" id="task-walkon">Walk on →</button>
     </div>
   </aside>
 
   <!-- ====================== SEED SIDEBAR ====================== -->
-  <button id="seed-toggle">▸ your seed · .knobe.md</button>
-  <aside id="sidebar">
-    <span class="sb-close" id="sb-close">✕ close</span>
+  <button id="seed-toggle" aria-expanded="false" aria-controls="sidebar">▸ your seed · .knobe.md</button>
+  <aside id="sidebar" aria-label="Your seed preview">
+    <button type="button" class="sb-close" id="sb-close">✕ close</button>
     <h3>Your Seed</h3>
     <div class="filename" id="seed-filename">seed.knobe.md</div>
     <div id="knobe-preview"></div>
@@ -158,7 +163,7 @@
   <div id="joy"><i></i></div>
 
   <!-- ====================== TOAST ====================== -->
-  <div id="toast"></div>
+  <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
   <!-- ====================== SCRIPTS ====================== -->
   <script src="grove/grove-data.js"></script>
@@ -239,10 +244,7 @@
       window.GROVE.player.freeze(false);
       try { window.GROVE.ui.startAudio(); } catch (e) {}
       window.GROVE.ui.toast('Walk toward the leaning gateway — the Threshold awaits, ' + name + '.');
-      // auto-dismiss the movement hint after a while
-      hintTimer = setTimeout(function () {
-        var h = document.getElementById('hud-hint'); if (h) h.style.display = 'none';
-      }, 14000);
+      // The movement hint stays until the visitor dismisses it (SC 2.2.1).
     }
 
     document.getElementById('hint-dismiss').addEventListener('click', function () {

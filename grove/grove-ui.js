@@ -7,6 +7,7 @@
   const U = {};
   const $ = (id) => document.getElementById(id);
   let currentStation = null;
+  let lastFocus = null;
 
   /* ---------------- progress dots ---------------- */
   U.updateProgress = function () {
@@ -122,19 +123,26 @@
       $('exp-down').onclick = () => window.GROVE.knobe.download();
     }
 
-    $('task').classList.add('show');
+    lastFocus = document.activeElement;
+    const taskEl = $('task');
+    taskEl.classList.add('show');
+    taskEl.setAttribute('aria-hidden', 'false');
     $('scrim').classList.add('show');
     const firstEmpty = [...body.querySelectorAll('textarea')].find(t => !t.value);
-    if (firstEmpty) setTimeout(() => firstEmpty.focus(), 520);
+    const focusTarget = firstEmpty || $('task-close');
+    if (focusTarget) setTimeout(() => focusTarget.focus(), 520);
   };
 
   U.closeTask = function () {
-    $('task').classList.remove('show');
+    const taskEl = $('task');
+    taskEl.classList.remove('show');
+    taskEl.setAttribute('aria-hidden', 'true');
     $('scrim').classList.remove('show');
     window.GROVE.player.freeze(false);
     if (window.GROVE.stations) window.GROVE.stations.refresh();
     U.updateProgress();
     currentStation = null;
+    if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (e) {} }
   };
 
   let savedT = null;
@@ -149,6 +157,8 @@
     const sb = $('sidebar');
     const open = force != null ? force : !sb.classList.contains('open');
     sb.classList.toggle('open', open);
+    const tgl = $('seed-toggle');
+    if (tgl) tgl.setAttribute('aria-expanded', open ? 'true' : 'false');
   };
 
   /* ---------------- toast ---------------- */
@@ -293,6 +303,8 @@
   function setAudioIcon(on) {
     const btn = $('tool-audio'); if (!btn) return;
     btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.setAttribute('aria-label', on ? 'Mute ambient sound' : 'Play ambient sound');
     btn.querySelector('.a-on').style.display = on ? '' : 'none';
     btn.querySelector('.a-off').style.display = on ? 'none' : '';
   }
@@ -305,11 +317,13 @@
     const btn = $('tool-path');
     if (btn) {
       btn.classList.toggle('on', on);
-      btn.title = on ? 'Hide the path to your next stop' : 'Show the path to your next stop';
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.setAttribute('aria-label', on ? 'Hide the path to your next stop' : 'Show the path to your next stop');
     }
     const pill = $('path-toggle');
     if (pill) {
       pill.classList.toggle('on', on);
+      pill.setAttribute('aria-pressed', on ? 'true' : 'false');
       const st = $('path-state'); if (st) st.textContent = on ? 'On' : 'Off';
     }
   };
@@ -338,6 +352,13 @@
     const pathPill = $('path-toggle');
     if (pathPill) pathPill.onclick = onPathToggle;
     U.setPathBtn(window.GROVE.stations.isPathVisible());
+    // Escape closes the open task panel or seed sidebar (SC 2.1.2 / 2.4.3).
+    window.addEventListener('keydown', e => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        if ($('task').classList.contains('show')) { e.preventDefault(); U.closeTask(); return; }
+        if ($('sidebar').classList.contains('open')) { e.preventDefault(); U.toggleSidebar(false); return; }
+      }
+    });
     window.addEventListener('keydown', e => {
       if (e.target && /TEXTAREA|INPUT/.test(e.target.tagName)) return;
       // Interact with the nearby station. Primary key is "I" (interact);

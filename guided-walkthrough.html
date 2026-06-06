@@ -31,7 +31,7 @@
   --bg-section: #111610;
   --text-primary: #E8E2D6;
   --text-secondary: #B5AD9E;
-  --text-muted: #7A7468;
+  --text-muted: #9A9384;
   --question-bg: rgba(45, 72, 35, 0.25);
   --question-border: #4A7A3A;
   --grove-key-bg: rgba(30, 55, 22, 0.4);
@@ -68,6 +68,31 @@ body {
   overflow: hidden;
   height: 100dvh;
   width: 100vw;
+}
+
+/* Visible keyboard focus indicator (SC 2.4.7) — restores what the
+   element-level `outline:none` rules remove. */
+a:focus-visible, button:focus-visible, input:focus-visible,
+textarea:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--sapwood-glow);
+  outline-offset: 2px;
+}
+
+/* visually-hidden helper for accessible names that stay off-screen */
+.sr-only {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* Respect reduced-motion preferences (SC 2.2.2 / 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  #main-area { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 /* ---- LAYOUT SHELL ---- */
@@ -109,6 +134,10 @@ body {
 #audio-control:hover { border-color: var(--sapwood); }
 #audio-control svg { width: 20px; height: 20px; fill: var(--text-secondary); }
 #audio-control.playing svg { fill: var(--sapwood); }
+/* keep the upgraded <button> controls visually identical to their prior <div> form */
+button#audio-control, button#fullscreen-btn {
+  padding: 0; font: inherit; -webkit-appearance: none; appearance: none; color: inherit;
+}
 
 /* ---- SIDEBAR ---- */
 
@@ -403,7 +432,7 @@ body {
   font-size: 0.65rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--question-border);
+  color: var(--root-myc);
   margin-bottom: 10px;
 }
 
@@ -1139,8 +1168,8 @@ body {
 }</style><style id="grove-no-quotes">.grove-quote{quotes:none !important;}.grove-quote::before{content:"" !important;display:none !important;}.grove-quote::after{content:"" !important;display:none !important;}*::before[class*="quote"]{content:"" !important;}*::after[class*="quote"]{content:"" !important;}</style></head>
 <body>
 <!-- Switch view · back to the grove entrance -->
-<a id="view-switch" href="index.html" title="Switch view · back to entrance">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
+<a id="view-switch" href="index.html" aria-label="Switch view — back to entrance">
+  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
   <span>Switch view</span>
 </a>
 <style>
@@ -1165,28 +1194,28 @@ body {
 <div id="progress-bar" style="width: 0%"></div>
 
 <!-- Audio toggle -->
-<div id="audio-control" onclick="toggleAudio()" title="Toggle music">
-  <svg id="audio-icon-off" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<button type="button" id="audio-control" onclick="toggleAudio()" aria-label="Play music" aria-pressed="false">
+  <svg id="audio-icon-off" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6m0-6l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
   </svg>
-  <svg id="audio-icon-on" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <svg id="audio-icon-on" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display:none">
     <path d="M11 5L6 9H2v6h4l5 4V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
     <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
   </svg>
-</div>
+</button>
 
 <!-- Fullscreen toggle -->
-<div id="fullscreen-btn" onclick="toggleFullscreen()" title="Toggle fullscreen">
-  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round" stroke-linejoin="round">
+<button type="button" id="fullscreen-btn" onclick="toggleFullscreen()" aria-label="Toggle fullscreen">
+  <svg aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round" stroke-linejoin="round">
     <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>
   </svg>
-</div>
+</button>
 
 <!-- Sidebar toggle -->
-<button id="sidebar-toggle" onclick="toggleSidebar()">_Magic_Grove_Journey.knobe.md</button>
+<button id="sidebar-toggle" onclick="toggleSidebar()" aria-expanded="false" aria-controls="sidebar">_Magic_Grove_Journey.knobe.md</button>
 
 <div id="app">
-<div id="main-area">
+<div id="main-area" role="main">
 
 <!-- ===================== 1. ENTRY ===================== -->
 <div class="section active" id="s-entry">
@@ -1196,9 +1225,10 @@ body {
   <p class="fade-slow narrative" style="font-family:var(--font-display); font-size:1.15rem; color:var(--text-secondary);">The grove has things to share with you. But it is also curious about your life: what you are making, what you are carrying, what you hope survives.</p>
   <p class="fade-slow narrative" style="font-family:var(--font-display); font-size:1rem; color:var(--text-muted); margin-top:12px;">Spend about thirty minutes here. When you leave, you will carry a small seed: a digital record of your thinking, structured so any mind, human or machine, can grow with it.</p>
   <p class="fade-slow narrative" style="margin-top:40px; font-family:var(--font-display); font-size:1.2rem; color:var(--text-primary);">But first.</p>
-  <p class="fade-slow narrative" style="font-family:var(--font-display); font-size:1.6rem; font-weight:400; color:var(--sapwood-glow); margin-top:8px;">What should we call you?</p>
+  <p id="name-prompt" class="fade-slow narrative" style="font-family:var(--font-display); font-size:1.6rem; font-weight:400; color:var(--sapwood-glow); margin-top:8px;">What should we call you?</p>
   <div class="fade-slow name-input-wrap" style="display:flex; justify-content:center;">
-    <input type="text" id="name-input" placeholder="A name, a nickname, whatever you carry into the grove." autocomplete="off" maxlength="60">
+    <label for="name-input" class="sr-only">What should we call you?</label>
+    <input type="text" id="name-input" aria-labelledby="name-prompt" placeholder="A name, a nickname, whatever you carry into the grove." autocomplete="off" maxlength="60">
   </div>
   <div class="fade-slow"><button class="nav-btn primary" id="enter-btn" disabled onclick="enterGrove()">Enter the Grove →</button></div>
 </div>
@@ -1605,18 +1635,18 @@ body {
 </div><!-- end main-area -->
 
 <!-- ============ SIDEBAR ============ -->
-<div id="sidebar" class="closed">
-  <h3>Your Seed</h3>
+<aside id="sidebar" class="closed" aria-label="Your seed preview">
+  <h2>Your Seed</h2>
   <div class="seed-label" id="sidebar-name">_Magic_Grove_Journey.knobe.md</div>
   <div id="knobe-preview">
     <span class="field-label"># Waiting for entry...</span>
   </div>
-</div>
+</aside>
 
 </div><!-- end app -->
 
 <!-- Toast -->
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <script>
 /* ============================================
@@ -1684,6 +1714,10 @@ function goTo(id) {
     el.style.animation = '';
   });
 
+  // Move keyboard/screen-reader focus to the new section's heading (SC 2.4.3)
+  const head = next.querySelector('.section-title');
+  if (head) { head.setAttribute('tabindex', '-1'); try { head.focus({ preventScroll: true }); } catch (e) { head.focus(); } }
+
   // Update progress
   const idx = sectionOrder.indexOf(id);
   const pct = ((idx) / (sectionOrder.length - 1)) * 100;
@@ -1710,14 +1744,30 @@ function goTo(id) {
 // ---- QUESTION HANDLING ----
 
 function advanceFromQ1() {
+  const q1 = document.getElementById('q1');
   const val = (state.answers.project_description || '').trim();
   if (val.length < 10) {
     showToast('The grove needs a bit more — tell us about your project.');
-    document.getElementById('q1').focus();
+    q1.setAttribute('aria-invalid', 'true');
+    q1.focus();
     return;
   }
+  q1.removeAttribute('aria-invalid');
   goTo('s-visitor');
 }
+
+// Associate each question textarea with its visible label + question text
+// (SC 1.3.1, 3.3.2, 4.1.2) so screen readers announce the prompt.
+document.querySelectorAll('.question-block').forEach((block, i) => {
+  const ta = block.querySelector('textarea');
+  if (!ta) return;
+  const ids = [];
+  const lbl = block.querySelector('.question-label');
+  const txt = block.querySelector('.question-text');
+  if (lbl) { if (!lbl.id) lbl.id = 'qlbl-' + i; ids.push(lbl.id); }
+  if (txt) { if (!txt.id) txt.id = 'qtxt-' + i; ids.push(txt.id); }
+  if (ids.length) ta.setAttribute('aria-labelledby', ids.join(' '));
+});
 
 document.querySelectorAll('textarea[data-field]').forEach(ta => {
   ta.addEventListener('input', () => {
@@ -1818,7 +1868,9 @@ function toggleSidebar() {
   const sb = document.getElementById('sidebar');
   state.sidebarOpen = !state.sidebarOpen;
   sb.classList.toggle('closed', !state.sidebarOpen);
-  document.getElementById('sidebar-toggle').textContent = state.sidebarOpen ? '✕ Close' : '_Magic_Grove_Journey.knobe.md';
+  const tgl = document.getElementById('sidebar-toggle');
+  tgl.textContent = state.sidebarOpen ? '✕ Close' : '_Magic_Grove_Journey.knobe.md';
+  tgl.setAttribute('aria-expanded', state.sidebarOpen ? 'true' : 'false');
 }
 
 // ---- AUDIO ----
@@ -1848,6 +1900,8 @@ function updateAudioIcon() {
   document.getElementById('audio-icon-on').style.display = state.audioPlaying ? 'block' : 'none';
   document.getElementById('audio-icon-off').style.display = state.audioPlaying ? 'none' : 'block';
   ctrl.classList.toggle('playing', state.audioPlaying);
+  ctrl.setAttribute('aria-pressed', state.audioPlaying ? 'true' : 'false');
+  ctrl.setAttribute('aria-label', state.audioPlaying ? 'Pause music' : 'Play music');
 }
 
 // ---- FULLSCREEN ----
@@ -2037,6 +2091,9 @@ updateKnobe();
 
   // ── 2. Sapwood popup ────────────────────────────────────────────
   var spAnimRef = null, spMolRef = null, spGeneRef = null;
+  // When the visitor prefers reduced motion, draw one static frame
+  // instead of an endless animation loop (SC 2.2.2 / 2.3.3).
+  var spReduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   function stopAll() {
     if (spAnimRef) { cancelAnimationFrame(spAnimRef); spAnimRef = null; }
@@ -2068,7 +2125,7 @@ updateKnobe();
       [0.34,0.44,0.50,0.55].forEach(function(r){ctx.beginPath();ctx.arc(cx,cy,Math.min(W,H)*r,0,Math.PI*2);ctx.strokeStyle='rgba(80,50,15,0.12)';ctx.lineWidth=1.5;ctx.stroke();});
       ctx.beginPath();ctx.arc(cx,cy,Math.min(W,H)*0.44,0,Math.PI*2);ctx.strokeStyle='rgba(160,120,50,0.2)';ctx.lineWidth=12;ctx.stroke();
       pts.forEach(function(p){p.y-=p.spd;p.wb+=p.wbs;p.x+=Math.sin(p.wb)*0.4;if(p.y<-10){p.y=H+10;p.x=Math.random()*W;}var d=Math.sqrt((p.x-cx)*(p.x-cx)+(p.y-cy)*(p.y-cy));var inSap=d>Math.min(W,H)*0.3&&d<Math.min(W,H)*0.5;ctx.beginPath();ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);ctx.fillStyle='hsla('+p.hue+',70%,55%,'+(inSap?p.op:p.op*0.15)+')';ctx.fill();});
-      spAnimRef = requestAnimationFrame(draw);
+      if (!spReduced) spAnimRef = requestAnimationFrame(draw);
     }
     draw();
   }
@@ -2093,7 +2150,7 @@ updateKnobe();
         ctx.fillText(t.label, lx + 13, ly);
         lx += ctx.measureText(t.label).width + 28;
       });
-      spMolRef = requestAnimationFrame(draw);
+      if (!spReduced) spMolRef = requestAnimationFrame(draw);
     }
     draw();
   }
@@ -2110,7 +2167,7 @@ updateKnobe();
       ctx.beginPath();for(var s2=0;s2<=steps;s2++){var px=s2*sh,py=cy+Math.sin(s2*0.45+hOff)*hw;s2===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}ctx.strokeStyle='rgba(74,154,106,0.5)';ctx.lineWidth=1.5;ctx.stroke();
       ctx.beginPath();for(var s3=0;s3<=steps;s3++){var px2=s3*sh,py2=cy+Math.sin(s3*0.45+hOff+Math.PI)*hw;s3===0?ctx.moveTo(px2,py2):ctx.lineTo(px2,py2);}ctx.strokeStyle='rgba(154,106,74,0.5)';ctx.lineWidth=1.5;ctx.stroke();
       prots.forEach(function(p){p.ph+=0.015;p.x+=p.vx;p.y+=p.vy;if(p.x<p.r||p.x>W-p.r)p.vx*=-1;if(Math.abs(p.y-cy)<hw+10)p.vy+=p.y<cy?-0.05:0.05;if(p.y<p.r){p.y=p.r;p.vy=Math.abs(p.vy);}if(p.y>H-p.r){p.y=H-p.r;p.vy=-Math.abs(p.vy);}var g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*3);g.addColorStop(0,p.color+'99');g.addColorStop(1,p.color+'00');ctx.beginPath();ctx.arc(p.x,p.y,p.r*3,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.color+'dd';ctx.fill();});
-      spGeneRef = requestAnimationFrame(draw);
+      if (!spReduced) spGeneRef = requestAnimationFrame(draw);
     }
     draw();
   }
