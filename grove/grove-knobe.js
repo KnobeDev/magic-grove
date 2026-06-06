@@ -95,7 +95,7 @@
     if (K.hash) md += `sha256: ${K.hash}\n`;
     md += `---\n\n`;
     md += `# ${n}'s Magic Grove Journey\n\n`;
-    md += `*Giant Sequoia Grove · KNOBE.AI*\n\n`;
+    md += `*Giant Sequoia Grove · Knobe.org*\n\n`;
     md += `## 1. Threshold\n\n`;
     md += `The grove asked what you are carrying — not a summary written for a grade, but something true about what you are actually trying to make.\n\n`;
     md += `**Project Description:** ${a.project_description || '—'}\n\n`;

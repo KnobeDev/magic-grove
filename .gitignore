@@ -2,13 +2,3 @@
 .DS_Store
 Thumbs.db
 *.log
-
-# Design-tool provenance & original template bundle (kept locally, not shipped)
-# The runtime deliverable is index.html, sequoia-grove.html,
-# guided-walkthrough.html and grove/. The reference material below is the
-# original Claude Design handoff (chats, source photos, unrelated D&D template).
-_design-reference/uploads/
-_design-reference/template-assets/
-_design-reference/template-world/
-_design-reference/screenshots/
-_design-reference/Embers World.html
