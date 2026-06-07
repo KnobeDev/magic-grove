@@ -120,9 +120,12 @@
 
     <!-- movement hint -->
     <div class="hud-hint" id="hud-hint">
-      <div><b>W A S D</b> walk &nbsp;·&nbsp; <b>drag</b> to look</div>
-      <div style="margin-top:6px"><b>click</b> ground to walk there &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Q</b> gaze up</div>
-      <div style="margin-top:6px"><b>I</b> &nbsp;or click&nbsp; to reflect at a glowing tree &nbsp;·&nbsp; <b>Enter</b> throw a rock</div>
+      <div class="desktop-only"><b>W A S D</b> walk &nbsp;·&nbsp; <b>drag</b> to look</div>
+      <div class="desktop-only" style="margin-top:6px"><b>click</b> ground to walk there &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Q</b> gaze up</div>
+      <div class="desktop-only" style="margin-top:6px"><b>I</b> &nbsp;or click&nbsp; to reflect at a glowing tree &nbsp;·&nbsp; <b>Enter</b> throw a rock</div>
+      <div class="touch-only"><b>joystick</b> to walk &nbsp;·&nbsp; <b>drag</b> to look</div>
+      <div class="touch-only" style="margin-top:6px"><b>tap</b> ground to walk there &nbsp;·&nbsp; <b>two fingers</b> to look up</div>
+      <div class="touch-only" style="margin-top:6px"><b>tap</b> a glowing tree to reflect &nbsp;·&nbsp; <b>double-tap</b> to throw a stone</div>
       <div style="margin-top:6px">follow the <b>golden footpath</b> to your next stop</div>
       <button type="button" class="dismiss" id="hint-dismiss">dismiss</button>
     </div>

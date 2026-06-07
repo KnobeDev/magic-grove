@@ -115,6 +115,9 @@
     P.camEl = document.getElementById('cam');
     P.cam = P.camEl.getObject3D('camera');
     P.canvas = sceneEl.canvas;
+    // Own all gestures on the 3D surface (orbit, two-finger gaze, double-tap
+    // throw); inline so it beats A-Frame's injected canvas styles.
+    P.canvas.style.touchAction = 'none';
     // avatar
     P.avatar = buildVisitor();
     P.pos.set(C.startPos.x, 0, C.startPos.z);
@@ -125,6 +128,7 @@
     sceneEl.object3D.add(P.avatar);
     bindPointer();
     bindKeys();
+    bindTouch();
     if (!sceneEl.components['playerdriver']) {
       AFRAME.registerComponent('playerdriver', { tick: (t, dt) => P.update(t, dt) });
       sceneEl.setAttribute('playerdriver', '');
@@ -312,6 +316,8 @@
   };
 
   /* ---------- pointer (orbit + click-to-walk) ---------- */
+  const DOUBLE_TAP_MS = 320;   // max gap between taps to count as a double-tap
+  const TAP_RADIUS = 44;       // max finger travel (px) between the two taps
   function setNDC(e, out) {
     const r = P.canvas.getBoundingClientRect();
     out.x = ((e.clientX - r.left) / r.width) * 2 - 1;
@@ -330,7 +336,7 @@
       P.canvas.setPointerCapture?.(e.pointerId);
     });
     window.addEventListener('pointermove', e => {
-      if (!P._drag) return;
+      if (!P._drag || P._twoFinger) return;   // two-finger gaze suppresses orbit
       const dx = e.movementX || 0, dy = e.movementY || 0;
       if (Math.abs(e.clientX - P._drag.sx) + Math.abs(e.clientY - P._drag.sy) > 4) P._drag.moved = true;
       if (P._drag.moved) {
@@ -340,17 +346,62 @@
     });
     window.addEventListener('pointerup', e => {
       if (!P._drag) return;
-      if (!P._drag.moved && !P.frozen) {
-        const gp = groundPoint(e);
-        if (gp) P.target = { x: gp.x, z: gp.z };
-      }
+      const wasTap = !P._drag.moved && !P.frozen;
       P._drag = null;
+      if (!wasTap) return;
+      // ignore lifts that were part of (or just after) a two-finger gaze gesture
+      if (P._twoFinger || performance.now() < (P._multiUntil || 0)) return;
+      // double-tap throws a stone on touch (mirrors Enter on desktop)
+      if (e.pointerType === 'touch') {
+        const now = performance.now();
+        const near = P._lastTapT &&
+          Math.hypot(e.clientX - P._lastTapX, e.clientY - P._lastTapY) < TAP_RADIUS;
+        if (near && now - P._lastTapT < DOUBLE_TAP_MS) {
+          P._lastTapT = 0;
+          P.target = null;          // cancel the walk the first tap started
+          P.throwRock();
+          return;                   // throw instead of walking
+        }
+        P._lastTapT = now; P._lastTapX = e.clientX; P._lastTapY = e.clientY;
+      }
+      const gp = groundPoint(e);
+      if (gp) P.target = { x: gp.x, z: gp.z };
     });
     P.canvas.addEventListener('wheel', e => {
       e.preventDefault();
       P.cam_dist = Math.max(5, Math.min(22, P.cam_dist * (1 + Math.sign(e.deltaY) * 0.08)));
     }, { passive: false });
     P.canvas.addEventListener('contextmenu', e => e.preventDefault());
+  }
+
+  /* ---------- touch gestures (mobile) ---------- */
+  // Count only the fingers that landed on the 3D canvas, so the movement
+  // joystick (its own element) never registers as a gaze gesture.
+  function canvasTouchCount(e) {
+    let n = 0;
+    for (const t of e.touches) if (t.target === P.canvas) n++;
+    return n;
+  }
+  function bindTouch() {
+    if (!P.canvas) return;
+    // Two fingers on the scene = look straight up into the canopy (mirrors holding Q).
+    P.canvas.addEventListener('touchstart', e => {
+      if (P.frozen) return;
+      if (canvasTouchCount(e) >= 2) {
+        P._twoFinger = true;
+        P._gaze = true;
+        P._drag = null;            // drop any single-finger orbit in progress
+      }
+    }, { passive: true });
+    const release = e => {
+      if (canvasTouchCount(e) < 2) P._gaze = false;
+      if (e.touches.length === 0) {
+        if (P._twoFinger) P._multiUntil = performance.now() + 350;
+        P._twoFinger = false;
+      }
+    };
+    P.canvas.addEventListener('touchend', release, { passive: true });
+    P.canvas.addEventListener('touchcancel', release, { passive: true });
   }
 
   /* ---------- keyboard ---------- */
