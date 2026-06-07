@@ -174,6 +174,95 @@
     // cap the litter
     while (P._rocks.length > 16) { const old = P._rocks.shift(); P.sceneEl.object3D.remove(old.mesh); old.mesh.geometry.dispose(); }
   };
+
+  /* ---------- echolocation (sonar ping) ----------
+     A short-range pulse spreads from the avatar. As the ring radius
+     reaches each nearby element, a positional "bing" plays so you hear
+     BOTH its direction (pan) and its distance (when the bing fires).
+     Range is deliberately small — it surveys what is within reach, not
+     the whole map. ECHO_RANGE is in world units; tune to taste. */
+  const ECHO_RANGE = 10;        // "~10 ft" of the grove's scale
+  const ECHO_SWEEP_S = 1.1;     // seconds for the pulse to reach full range
+  const ECHO_COOLDOWN = 1300;   // ms between pings
+  let _echo = null;             // { mesh, mat, t0 }
+
+  function echoReduced() {
+    return window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+  function disposeEcho() {
+    if (!_echo) return;
+    try { P.sceneEl.object3D.remove(_echo.mesh); _echo.mesh.geometry.dispose(); _echo.mat.dispose(); } catch (e) {}
+    _echo = null;
+  }
+  function spawnEchoRing() {
+    if (echoReduced() || !P.sceneEl) return;   // honor reduced motion (audio still plays)
+    disposeEcho();
+    const geo = new T.RingGeometry(0.9, 1.05, 56);
+    const mat = new T.MeshBasicMaterial({
+      color: 0xf0d488, transparent: true, opacity: 0.5,
+      side: T.DoubleSide, depthWrite: false,
+    });
+    const mesh = new T.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(P.pos.x, 0.15, P.pos.z);
+    P.sceneEl.object3D.add(mesh);
+    _echo = { mesh, mat, t0: performance.now() };
+  }
+  function updateEchoRing() {
+    if (!_echo) return;
+    const t = (performance.now() - _echo.t0) / (ECHO_SWEEP_S * 1000);
+    if (t >= 1) { disposeEcho(); return; }
+    const radius = 0.9 + t * ECHO_RANGE;
+    _echo.mesh.scale.set(radius, radius, radius);
+    _echo.mat.opacity = 0.5 * (1 - t);
+  }
+
+  P.echoPing = function () {
+    if (P.frozen) return;
+    const now = performance.now();
+    if (now < (P._echoUntil || 0)) return;     // cooldown
+    P._echoUntil = now + ECHO_COOLDOWN;
+
+    const sp = window.GROVE.spatial;
+    if (sp) {
+      sp.resume && sp.resume();
+      const fx = -Math.sin(P.cam_yaw), fz = -Math.cos(P.cam_yaw);
+      sp.setListener(P.pos.x, P.pos.z, fx, fz);
+    }
+
+    // Gather elements within range: stations (bright) + obstacles (dull).
+    const hits = [];
+    (window.GROVE.STATIONS || []).forEach(st => {
+      const d = Math.hypot(st.pos.x - P.pos.x, st.pos.z - P.pos.z);
+      if (d <= ECHO_RANGE) hits.push({ x: st.pos.x, z: st.pos.z, d, station: true });
+    });
+    (window.GROVE.blockers || []).forEach(b => {
+      const d = Math.hypot(b.x - P.pos.x, b.z - P.pos.z) - (b.r || 0);
+      if (d > 0.2 && d <= ECHO_RANGE) hits.push({ x: b.x, z: b.z, d, station: false });
+    });
+
+    spawnEchoRing();
+
+    // Schedule each bing for when the ring radius reaches that element.
+    if (sp) {
+      hits.forEach(h => {
+        const delay = (Math.max(0, h.d) / ECHO_RANGE) * ECHO_SWEEP_S;
+        sp.bingAt(h.x, h.z, h.station
+          ? { delay, freq: 740, type: 'sine', gain: 0.5, dur: 0.5 }
+          : { delay, freq: 300, type: 'triangle', gain: 0.28, dur: 0.32 });
+      });
+    }
+
+    const stations = hits.filter(h => h.station).length;
+    if (window.GROVE.ui && window.GROVE.ui.toast) {
+      window.GROVE.ui.toast(
+        hits.length
+          ? `Echo — ${stations} station${stations === 1 ? '' : 's'}, ${hits.length - stations} obstacle${hits.length - stations === 1 ? '' : 's'} within reach`
+          : 'Echo — nothing within reach');
+    }
+  };
+
   function updateRocks(dt) {
     const sec = Math.min(dt, 50) / 1000;
     for (const r of P._rocks) {
@@ -313,6 +402,15 @@
 
     // proximity → stations
     if (window.GROVE.stations) window.GROVE.stations.checkProximity(P.pos);
+
+    // spatial-audio listener rides the avatar, facing the camera yaw
+    // (not the distant orbit camera), so station drones + echo bings pan
+    // from where you actually stand.
+    if (window.GROVE.spatial) {
+      const lfx = -Math.sin(P.cam_yaw), lfz = -Math.cos(P.cam_yaw);
+      window.GROVE.spatial.setListener(P.pos.x, P.pos.z, lfx, lfz);
+    }
+    updateEchoRing();
   };
 
   /* ---------- pointer (orbit + click-to-walk) ---------- */
@@ -414,6 +512,9 @@
       if (e.key.toLowerCase() === 'q') P._gaze = true;
       if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); P.jump(); }
       if (e.key === 'Enter') { e.preventDefault(); P.throwRock(); }
+      // "F" = echolocation sonar ping. (Avoiding "E": some preview/host
+      // environments capture it as a global edit-mode shortcut.)
+      if (e.key.toLowerCase() === 'f') { e.preventDefault(); P.echoPing(); }
       if (e.key === 'Escape' && window.GROVE.ui) window.GROVE.ui.closeTask();
     });
     window.addEventListener('keyup', e => {

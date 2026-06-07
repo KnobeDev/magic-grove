@@ -203,6 +203,9 @@
 
   /* ---------------- ambient audio (synth forest bed) ---------------- */
   const audio = { ctx: null, on: false, gain: null, birdT: null };
+  // Share the audio context with the positional engine (grove-audio.js)
+  // so the station drones never spin up a second AudioContext.
+  window.GROVE._audio = audio;
   function startAudio() {
     if (audio.ctx) { resumeAudio(); return; }
     const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -243,16 +246,32 @@
     audio.ctx.resume();
     audio.on = true;
     audio.gain.gain.linearRampToValueAtTime(0.5, audio.ctx.currentTime + 1.2);
+    if (window.GROVE.spatial) window.GROVE.spatial.setEnabled(true);  // station drones on
     setAudioIcon(true);
   }
   function pauseAudio() {
     if (!audio.ctx) return;
     audio.on = false;
     audio.gain.gain.linearRampToValueAtTime(0.0, audio.ctx.currentTime + 0.4);
+    if (window.GROVE.spatial) window.GROVE.spatial.setEnabled(false); // station drones off
     setAudioIcon(false);
   }
   U.toggleAudio = function () { audio.on ? pauseAudio() : resumeAudio(); };
   U.startAudio = startAudio;
+
+  // Echolocation: fire the sonar ping owned by the player. A user gesture
+  // (button/key) reaches here, so resume the audio context first.
+  U.echoPing = function () {
+    if (window.GROVE.spatial) window.GROVE.spatial.resume();
+    if (window.GROVE.player && window.GROVE.player.echoPing) window.GROVE.player.echoPing();
+    const btn = $('tool-echo');
+    if (btn) {
+      btn.classList.remove('pinging');
+      void btn.offsetWidth;            // restart the CSS animation
+      btn.classList.add('pinging');
+      setTimeout(() => btn.classList.remove('pinging'), 1200);
+    }
+  };
 
   /* ---- one-shot SFX: rock thunk / knock (procedural, no files) ----
      Plays through its own gain so it's audible even when the ambient
@@ -338,6 +357,8 @@
     $('seed-toggle').onclick = () => U.toggleSidebar();
     $('sb-close').onclick = () => U.toggleSidebar(false);
     $('tool-audio').onclick = U.toggleAudio;
+    const echoBtn = $('tool-echo');
+    if (echoBtn) echoBtn.onclick = () => U.echoPing();
     $('tool-fs').onclick = () => {
       if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
       else document.exitFullscreen?.();

@@ -113,6 +113,9 @@
         <svg class="a-on" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14"/></svg>
         <svg class="a-off" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M22 9l-6 6M16 9l6 6"/></svg>
       </button>
+      <button type="button" class="tool" id="tool-echo" aria-label="Echolocation ping — reveal nearby trees and obstacles by sound">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><path d="M8.5 8.5a5 5 0 000 7M15.5 8.5a5 5 0 010 7"/><path d="M6 6a9 9 0 000 12M18 6a9 9 0 010 12"/></svg>
+      </button>
       <button type="button" class="tool" id="tool-fs" aria-label="Toggle fullscreen">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
       </button>
@@ -123,9 +126,11 @@
       <div class="desktop-only"><b>W A S D</b> walk &nbsp;·&nbsp; <b>drag</b> to look</div>
       <div class="desktop-only" style="margin-top:6px"><b>click</b> ground to walk there &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Q</b> gaze up</div>
       <div class="desktop-only" style="margin-top:6px"><b>I</b> &nbsp;or click&nbsp; to reflect at a glowing tree &nbsp;·&nbsp; <b>Enter</b> throw a rock</div>
+      <div class="desktop-only" style="margin-top:6px"><b>F</b> &nbsp;or the&nbsp; <b>sonar button</b> &nbsp;to echo-locate what's nearby</div>
       <div class="touch-only"><b>joystick</b> to walk &nbsp;·&nbsp; <b>drag</b> to look</div>
       <div class="touch-only" style="margin-top:6px"><b>tap</b> ground to walk there &nbsp;·&nbsp; <b>two fingers</b> to look up</div>
       <div class="touch-only" style="margin-top:6px"><b>tap</b> a glowing tree to reflect &nbsp;·&nbsp; <b>double-tap</b> to throw a stone</div>
+      <div class="touch-only" style="margin-top:6px">tap the <b>sonar button</b> to echo-locate what's nearby</div>
       <div style="margin-top:6px">follow the <b>golden footpath</b> to your next stop</div>
       <button type="button" class="dismiss" id="hint-dismiss">dismiss</button>
     </div>
@@ -170,6 +175,7 @@
 
   <!-- ====================== SCRIPTS ====================== -->
   <script src="grove/grove-data.js"></script>
+  <script src="grove/grove-audio.js"></script>
   <script src="grove/sequoia.js"></script>
   <script src="grove/grove-env.js"></script>
   <script src="grove/grove-player.js"></script>
