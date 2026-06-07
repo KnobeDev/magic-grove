@@ -91,11 +91,11 @@
     md += `knobe_type: thinking\n`;
     md += `author: "${n.replace(/"/g, '\\"')}"\n`;
     md += `created: ${date}\n`;
-    md += `generator: Sequoia Grove (walkable)\n`;
+    md += `generator: Magic Grove (walkable)\n`;
     if (K.hash) md += `sha256: ${K.hash}\n`;
     md += `---\n\n`;
     md += `# ${n}'s Magic Grove Journey\n\n`;
-    md += `*Giant Sequoia Grove · Knobe.org*\n\n`;
+    md += `*The Magic Grove · Knobe.org*\n\n`;
     md += `## 1. Threshold\n\n`;
     md += `The grove asked what you are carrying — not a summary written for a grade, but something true about what you are actually trying to make.\n\n`;
     md += `**Project Description:** ${a.project_description || '—'}\n\n`;
@@ -139,7 +139,7 @@
   };
   K.email = function () {
     const body = encodeURIComponent(K.generateMd());
-    const subject = encodeURIComponent(`${K.name}_Magic_Grove_Journey.knobe.md — Sequoia Grove Seed`);
+    const subject = encodeURIComponent(`${K.name}_Magic_Grove_Journey.knobe.md — Magic Grove Seed`);
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
   K.download = function () {
