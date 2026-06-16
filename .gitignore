@@ -2,3 +2,6 @@
 .DS_Store
 Thumbs.db
 *.log
+
+# Internal design-process notes (not for publication)
+_design-reference/
