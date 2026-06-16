@@ -136,23 +136,26 @@
   S.isOn = function () { return S.on; };
   S.stop = stop;
 
-  /* ---- one-shot "knock" cue: a gentle rap played as the visitor steps into
-     a station's active area ("you've arrived — press I"). Independent of the
-     HRTF guiding bed, and brief (<3s) so WCAG 1.4.2's auto-play rule does not
-     apply. Cloned per play so quick re-entries can overlap; play() rejections
-     (autoplay policy before any gesture) are swallowed. ---- */
-  const KNOCK_SRC = 'grove/assets/universfield-door-knock-291150.mp3';
-  const KNOCK_VOL = 0.5;
-  let _knockEl = null;
-  S.knock = function () {
+  /* ---- one-shot "notify" cue: a gentle notification chime played as the
+     visitor steps into a station's active area ("you've arrived — press I").
+     Independent of the HRTF guiding bed, and brief (<3s) so WCAG 1.4.2's
+     auto-play rule does not apply. Cloned per play so quick re-entries can
+     overlap; play() rejections (autoplay policy before any gesture) are
+     swallowed. ---- */
+  const NOTIFY_SRC = 'grove/assets/universfield-new-notification-060-494264.mp3';
+  const NOTIFY_VOL = 0.5;
+  let _notifyEl = null;
+  S.notify = function () {
     try {
-      if (!_knockEl) { _knockEl = new Audio(KNOCK_SRC); _knockEl.preload = 'auto'; }
-      const a = _knockEl.cloneNode();
-      a.volume = KNOCK_VOL;
+      if (!_notifyEl) { _notifyEl = new Audio(NOTIFY_SRC); _notifyEl.preload = 'auto'; }
+      const a = _notifyEl.cloneNode();
+      a.volume = NOTIFY_VOL;
       const p = a.play();
       if (p && p.catch) p.catch(function () {});
     } catch (e) {}
   };
+  /* back-compat alias for any caller still using the old name */
+  S.knock = S.notify;
 
   /* ---- visitor volume (0..1), persisted; live while playing ---- */
   S.getVolume = function () { return S.vol; };

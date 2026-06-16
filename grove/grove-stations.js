@@ -259,13 +259,13 @@
       if (d < C.proximity + 2 && d < bestD) { best = e; bestD = d; kind = 'exhibit'; }
     }
     if (best !== _near) {
-      // knock ONLY when stepping into the active element — the station the
+      // notify ONLY when stepping into the active element — the station the
       // wayfinding currently leads to (next incomplete). Props you pass before
       // it is their turn stay quiet; exhibits aren't part of the guided sequence.
       if (best && kind === 'station' &&
           window.GROVE.STATIONS.indexOf(best) === nextIndex() &&
-          window.GROVE.spatial && window.GROVE.spatial.knock) {
-        window.GROVE.spatial.knock();
+          window.GROVE.spatial && window.GROVE.spatial.notify) {
+        window.GROVE.spatial.notify();
       }
       _near = best;
       S.active = best;
