@@ -130,8 +130,16 @@
       html += '<div class="intro outro">' + station.outro.map(p => `<p>${escapeHtml(p)}</p>`).join('') + '</div>';
     }
 
+    // "The Invisible Layer" — interactive sapwood study (live, moving content)
+    if (station.id === 'sapwood') {
+      html += `<div class="export-row">` +
+        `<button class="btn leaf" id="sapwood-study-open">▶ Explore the living layer</button>` +
+        `</div>` +
+        `<p class="task-note">Step inside the only living part of the trunk — sap flow, the molecular soup it carries, and the genetic code beneath.</p>`;
+    }
+
     // "Explore the living layers" — the layers infographic on the stump
-    if (station.marker === 'stumplayer') {
+    if (station.marker === 'stumplayer' && station.id !== 'sapwood') {
       html += `<details class="layers-explore">` +
         `<summary>Explore the living layers</summary>` +
         `<figure class="station-fig wide">` +
@@ -186,6 +194,8 @@
     };
     const sealBtn = $('seed-seal');
     if (sealBtn) sealBtn.onclick = () => U.sealSeed();
+    const sapStudy = $('sapwood-study-open');
+    if (sapStudy && window.GROVE.sapwoodStudy) sapStudy.onclick = () => window.GROVE.sapwoodStudy.open();
 
     lastFocus = document.activeElement;
     const taskEl = $('task');
