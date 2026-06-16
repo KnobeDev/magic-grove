@@ -1,7 +1,8 @@
 /* ===================================================================
    grove-player.js — the walking visitor + third-person follow camera.
-   Movement: WASD / arrows (camera-relative), click/tap ground to walk,
-   drag to orbit, wheel to zoom, on-screen joystick (GROVE.input).
+   Movement: WASD walks (camera-relative), click/tap ground to walk,
+   joystick (GROVE.input). Camera: drag to orbit OR arrow keys
+   (←/→ yaw, ↑/↓ pitch) for mouse-free look, wheel to zoom, Q gazes up.
    Trunk collision via GROVE.blockers. Exposes GROVE.player.
    =================================================================== */
 (function () {
@@ -72,14 +73,6 @@
       arms[0].rotation.x = b * 0.05; arms[1].rotation.x = -b * 0.05;
       if (p.head) p.head.rotation.z = b * 0.025;
     }
-    // throwing overrides the right arm with a quick overhand swing
-    if (P._throwAnim > 0) {
-      const ta = P._throwAnim;                 // 1 → 0
-      arms[1].rotation.x = -2.6 * ta;          // wind up high, snap forward
-      arms[1].rotation.z = 0.2 * ta;
-      P._throwAnim = Math.max(0, ta - 0.07);
-      if (P._throwAnim === 0) arms[1].rotation.z = 0;
-    }
   }
 
   /* ---------- collision against trunk footprints ---------- */
@@ -141,204 +134,22 @@
     if (P.grounded && !P.frozen) { P.vy = 6.4; P.grounded = false; }
   };
 
-  /* ---------- rock throwing ---------- */
-  P._rocks = [];
-  P._throwAnim = 0;
-  function makeRock() {
-    const rad = 0.16 + Math.random() * 0.06;
-    const geo = new T.DodecahedronGeometry(rad, 0);
-    // squish a bit so it reads as a stone, not a ball
-    geo.scale(1, 0.8 + Math.random() * 0.2, 1.05);
-    const mesh = new T.Mesh(geo, new T.MeshStandardMaterial({
-      color: col(['#8a8377', '#766f63', '#938b7d', '#6d665b'][(Math.random() * 4) | 0]),
-      roughness: 1, metalness: 0, flatShading: true,
-    }));
-    mesh.castShadow = true;
-    mesh.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
-    return { mesh, rad, vel: new T.Vector3(), spin: new T.Vector3(), resting: false };
-  }
-  P.throwRock = function () {
-    if (P.frozen || !P.sceneEl) return;
-    const r = makeRock();
-    const cy = P.cam_yaw;
-    const fx = -Math.sin(cy), fz = -Math.cos(cy);   // camera forward on ground
-    r.mesh.position.set(P.pos.x + fx * 0.6, 1.15 + P.jumpY, P.pos.z + fz * 0.6);
-    const speed = 12.5 + Math.random() * 2, up = 6.2;
-    r.vel.set(fx * speed, up, fz * speed);
-    r.spin.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14);
-    P.sceneEl.object3D.add(r.mesh);
-    P._rocks.push(r);
-    // make the hiker face the throw and swing
-    P.heading = Math.atan2(fx, fz);
-    P._throwAnim = 1;
-    // cap the litter
-    while (P._rocks.length > 16) { const old = P._rocks.shift(); P.sceneEl.object3D.remove(old.mesh); old.mesh.geometry.dispose(); }
-  };
-
-  /* ---------- echolocation (sonar ping) ----------
-     A short-range pulse spreads from the avatar. As the ring radius
-     reaches each nearby element, a positional "bing" plays so you hear
-     BOTH its direction (pan) and its distance (when the bing fires).
-     Range is deliberately small — it surveys what is within reach, not
-     the whole map. ECHO_RANGE is in world units; tune to taste. */
-  const ECHO_RANGE = 10;        // "~10 ft" of the grove's scale
-  const ECHO_SWEEP_S = 1.1;     // seconds for the pulse to reach full range
-  const ECHO_COOLDOWN = 1300;   // ms between pings
-  let _echo = null;             // { mesh, mat, t0 }
-
-  function echoReduced() {
-    return window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  }
-  function disposeEcho() {
-    if (!_echo) return;
-    try { P.sceneEl.object3D.remove(_echo.mesh); _echo.mesh.geometry.dispose(); _echo.mat.dispose(); } catch (e) {}
-    _echo = null;
-  }
-  function spawnEchoRing() {
-    if (echoReduced() || !P.sceneEl) return;   // honor reduced motion (audio still plays)
-    disposeEcho();
-    const geo = new T.RingGeometry(0.9, 1.05, 56);
-    const mat = new T.MeshBasicMaterial({
-      color: 0xf0d488, transparent: true, opacity: 0.5,
-      side: T.DoubleSide, depthWrite: false,
-    });
-    const mesh = new T.Mesh(geo, mat);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(P.pos.x, 0.15, P.pos.z);
-    P.sceneEl.object3D.add(mesh);
-    _echo = { mesh, mat, t0: performance.now() };
-  }
-  function updateEchoRing() {
-    if (!_echo) return;
-    const t = (performance.now() - _echo.t0) / (ECHO_SWEEP_S * 1000);
-    if (t >= 1) { disposeEcho(); return; }
-    const radius = 0.9 + t * ECHO_RANGE;
-    _echo.mesh.scale.set(radius, radius, radius);
-    _echo.mat.opacity = 0.5 * (1 - t);
-  }
-
-  P.echoPing = function () {
-    if (P.frozen) return;
-    const now = performance.now();
-    if (now < (P._echoUntil || 0)) return;     // cooldown
-    P._echoUntil = now + ECHO_COOLDOWN;
-
-    const sp = window.GROVE.spatial;
-    if (sp) {
-      sp.resume && sp.resume();
-      const fx = -Math.sin(P.cam_yaw), fz = -Math.cos(P.cam_yaw);
-      sp.setListener(P.pos.x, P.pos.z, fx, fz);
-    }
-
-    // Gather elements within range: stations (bright) + obstacles (dull).
-    const hits = [];
-    (window.GROVE.STATIONS || []).forEach(st => {
-      const d = Math.hypot(st.pos.x - P.pos.x, st.pos.z - P.pos.z);
-      if (d <= ECHO_RANGE) hits.push({ x: st.pos.x, z: st.pos.z, d, station: true });
-    });
-    (window.GROVE.blockers || []).forEach(b => {
-      const d = Math.hypot(b.x - P.pos.x, b.z - P.pos.z) - (b.r || 0);
-      if (d > 0.2 && d <= ECHO_RANGE) hits.push({ x: b.x, z: b.z, d, station: false });
-    });
-
-    spawnEchoRing();
-
-    // Schedule each bing for when the ring radius reaches that element.
-    if (sp) {
-      hits.forEach(h => {
-        const delay = (Math.max(0, h.d) / ECHO_RANGE) * ECHO_SWEEP_S;
-        sp.bingAt(h.x, h.z, h.station
-          ? { delay, freq: 740, type: 'sine', gain: 0.5, dur: 0.5 }
-          : { delay, freq: 300, type: 'triangle', gain: 0.28, dur: 0.32 });
-      });
-    }
-
-    const stations = hits.filter(h => h.station).length;
-    if (window.GROVE.ui && window.GROVE.ui.toast) {
-      window.GROVE.ui.toast(
-        hits.length
-          ? `Echo — ${stations} station${stations === 1 ? '' : 's'}, ${hits.length - stations} obstacle${hits.length - stations === 1 ? '' : 's'} within reach`
-          : 'Echo — nothing within reach');
-    }
-  };
-
-  function updateRocks(dt) {
-    const sec = Math.min(dt, 50) / 1000;
-    for (const r of P._rocks) {
-      if (r.resting) continue;
-      r.vel.y -= 20 * sec;                      // gravity
-      const px = r.mesh.position.x + r.vel.x * sec;
-      const py = r.mesh.position.y + r.vel.y * sec;
-      const pz = r.mesh.position.z + r.vel.z * sec;
-      r.mesh.position.set(px, py, pz);
-      r.mesh.rotation.x += r.spin.x * sec;
-      r.mesh.rotation.y += r.spin.y * sec;
-      r.mesh.rotation.z += r.spin.z * sec;
-
-      // --- knock into trunks / rocks / logs (cylinder blockers) ---
-      if (r.mesh.position.y < 9) {              // only near-ground hits the trunks
-        for (const b of window.GROVE.blockers) {
-          const rr = (b.r || 1) + r.rad;
-          const dx = r.mesh.position.x - b.x, dz = r.mesh.position.z - b.z;
-          const d2 = dx * dx + dz * dz;
-          if (d2 < rr * rr && d2 > 1e-5) {
-            const d = Math.sqrt(d2), nx = dx / d, nz = dz / d;
-            r.mesh.position.x = b.x + nx * rr;   // push out to the surface
-            r.mesh.position.z = b.z + nz * rr;
-            const vn = r.vel.x * nx + r.vel.z * nz;
-            if (vn < 0) {
-              r.vel.x -= 2 * vn * nx; r.vel.z -= 2 * vn * nz;  // reflect
-              r.vel.x *= 0.5; r.vel.z *= 0.5;     // energy loss on the bark
-              r.spin.multiplyScalar(-0.5);
-              const hardness = Math.min(1, Math.hypot(r.vel.x, r.vel.z) / 8 + 0.25);
-              knock(r, hardness, true);           // woody "knock"
-            }
-            break;
-          }
-        }
-      }
-
-      // --- ground ---
-      if (r.mesh.position.y <= r.rad) {
-        r.mesh.position.y = r.rad;
-        const horiz = Math.hypot(r.vel.x, r.vel.z);
-        const impact = Math.min(1, Math.abs(r.vel.y) / 7 + 0.15);
-        if (Math.abs(r.vel.y) < 1.3 && horiz < 0.7) {
-          if (!r.landed) knock(r, 0.35, false);
-          r.resting = true; r.spin.set(0, 0, 0);
-        } else {
-          knock(r, impact, false);              // earthy "thunk"
-          r.vel.y = -r.vel.y * 0.42;            // bounce
-          r.vel.x *= 0.68; r.vel.z *= 0.68;
-          r.spin.multiplyScalar(0.6);
-        }
-      }
-    }
-  }
-
-  /* play an impact sound, panned + attenuated by distance, throttled so a
-     single bounce-flurry doesn't machine-gun. */
-  function knock(r, strength, woody) {
-    r.landed = true;
-    const nowMs = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-    if (nowMs - (r.lastSnd || 0) < 70) return;
-    r.lastSnd = nowMs;
-    const ui = window.GROVE.ui; if (!ui || !ui.playThunk) return;
-    const dx = r.mesh.position.x - P.pos.x, dz = r.mesh.position.z - P.pos.z;
-    const dist = Math.hypot(dx, dz);
-    const atten = Math.max(0.12, 1 - dist / 60);     // distance falloff
-    const rx = Math.cos(P.cam_yaw), rz = -Math.sin(P.cam_yaw);
-    const pan = Math.max(-1, Math.min(1, (dx * rx + dz * rz) / 18));  // stereo placement
-    ui.playThunk(strength * atten, pan, woody);
-  }
-
   /* ---------- per-frame ---------- */
   const _tgt = new T.Vector3(), _pos = new T.Vector3(), _f = new T.Vector3(), _rgt = new T.Vector3();
   P.update = function (time, dt) {
     dt = Math.min(dt, 50);
     const spd = 7.2 * dt / 1000;
     let mvx = 0, mvz = 0, walking = false;
+
+    // arrow keys = mouse-free camera (matches drag-to-orbit): ←/→ yaw, ↑/↓ pitch
+    if (!P.frozen) {
+      const yawRate = 1.7 * dt / 1000;
+      const pitchRate = 1.2 * dt / 1000;
+      if (keys['arrowleft'])  P.cam_yaw += yawRate;   // swing view left
+      if (keys['arrowright']) P.cam_yaw -= yawRate;   // swing view right
+      if (keys['arrowup'])    P.cam_pitch = Math.max(0.08, P.cam_pitch - pitchRate);  // look up
+      if (keys['arrowdown'])  P.cam_pitch = Math.min(1.25, P.cam_pitch + pitchRate);  // look down
+    }
 
     if (!P.frozen) {
       // camera-relative move from keys/joystick
@@ -370,15 +181,18 @@
       P.heading = Math.atan2(mvx, mvz);
     }
     P.moving = walking;
-    updateRocks(dt);
 
-    // ---- vertical jump (gravity integration) ----
+    // ---- terrain: the Mother stump is walkable; the ground rises under us ----
+    const groundY = window.GROVE.terrainHeight
+      ? window.GROVE.terrainHeight(P.pos.x, P.pos.z) : 0;
+
+    // ---- vertical jump (gravity integration, relative to the ground surface) ----
     if (!P.grounded) {
       P.vy -= 18 * dt / 1000;            // gravity
       P.jumpY += P.vy * dt / 1000;
       if (P.jumpY <= 0) { P.jumpY = 0; P.vy = 0; P.grounded = true; }
     }
-    P.avatar.position.set(P.pos.x, P.jumpY, P.pos.z);
+    P.avatar.position.set(P.pos.x, groundY + P.jumpY, P.pos.z);
     // smooth turn
     let dh = P.heading - P.avatar.rotation.y;
     while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2;
@@ -386,7 +200,7 @@
     animate(P.avatar, time, walking);
 
     // ---- camera follow ----
-    const headY = 1.3 + P.jumpY * 0.7;
+    const headY = groundY + 1.3 + P.jumpY * 0.7;
     const gaze = P.gazeUp;
     const focusY = headY + gaze * 10;
     const focus = _tgt.set(P.pos.x, focusY, P.pos.z);
@@ -403,19 +217,16 @@
     // proximity → stations
     if (window.GROVE.stations) window.GROVE.stations.checkProximity(P.pos);
 
-    // spatial-audio listener rides the avatar, facing the camera yaw
-    // (not the distant orbit camera), so station drones + echo bings pan
-    // from where you actually stand.
+    // Spatial-audio listener rides the avatar and faces the camera yaw (not
+    // the distant orbit camera), so the guiding sound pans by direction
+    // relative to where you actually stand and look.
     if (window.GROVE.spatial) {
       const lfx = -Math.sin(P.cam_yaw), lfz = -Math.cos(P.cam_yaw);
       window.GROVE.spatial.setListener(P.pos.x, P.pos.z, lfx, lfz);
     }
-    updateEchoRing();
   };
 
   /* ---------- pointer (orbit + click-to-walk) ---------- */
-  const DOUBLE_TAP_MS = 320;   // max gap between taps to count as a double-tap
-  const TAP_RADIUS = 44;       // max finger travel (px) between the two taps
   function setNDC(e, out) {
     const r = P.canvas.getBoundingClientRect();
     out.x = ((e.clientX - r.left) / r.width) * 2 - 1;
@@ -449,19 +260,6 @@
       if (!wasTap) return;
       // ignore lifts that were part of (or just after) a two-finger gaze gesture
       if (P._twoFinger || performance.now() < (P._multiUntil || 0)) return;
-      // double-tap throws a stone on touch (mirrors Enter on desktop)
-      if (e.pointerType === 'touch') {
-        const now = performance.now();
-        const near = P._lastTapT &&
-          Math.hypot(e.clientX - P._lastTapX, e.clientY - P._lastTapY) < TAP_RADIUS;
-        if (near && now - P._lastTapT < DOUBLE_TAP_MS) {
-          P._lastTapT = 0;
-          P.target = null;          // cancel the walk the first tap started
-          P.throwRock();
-          return;                   // throw instead of walking
-        }
-        P._lastTapT = now; P._lastTapX = e.clientX; P._lastTapY = e.clientY;
-      }
       const gp = groundPoint(e);
       if (gp) P.target = { x: gp.x, z: gp.z };
     });
@@ -510,11 +308,9 @@
       if (e.target && /TEXTAREA|INPUT/.test(e.target.tagName)) return;
       keys[e.key.toLowerCase()] = true; syncInput();
       if (e.key.toLowerCase() === 'q') P._gaze = true;
+      // arrows drive the camera (handled in P.update); stop them scrolling the page
+      if (/^Arrow(Up|Down|Left|Right)$/.test(e.key)) e.preventDefault();
       if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); P.jump(); }
-      if (e.key === 'Enter') { e.preventDefault(); P.throwRock(); }
-      // "F" = echolocation sonar ping. (Avoiding "E": some preview/host
-      // environments capture it as a global edit-mode shortcut.)
-      if (e.key.toLowerCase() === 'f') { e.preventDefault(); P.echoPing(); }
       if (e.key === 'Escape' && window.GROVE.ui) window.GROVE.ui.closeTask();
     });
     window.addEventListener('keyup', e => {
@@ -529,10 +325,11 @@
   }
   function syncInput() {
     let x = 0, z = 0;
-    if (keys['w'] || keys['arrowup']) z -= 1;
-    if (keys['s'] || keys['arrowdown']) z += 1;
-    if (keys['a'] || keys['arrowleft']) x -= 1;
-    if (keys['d'] || keys['arrowright']) x += 1;
+    // WASD walks; arrow keys are the mouse-free CAMERA controls (see P.update).
+    if (keys['w']) z -= 1;
+    if (keys['s']) z += 1;
+    if (keys['a']) x -= 1;
+    if (keys['d']) x += 1;
     // only override joystick when keys pressed
     if (x || z) { window.GROVE.input.x = x; window.GROVE.input.z = z; }
     else if (!window.GROVE._joyActive) { window.GROVE.input.x = 0; window.GROVE.input.z = 0; }
@@ -540,7 +337,8 @@
 
   P.setGaze = function (on) { P._gaze = on; };
   P.teleport = function (x, z, faceHeading) {
-    P.pos.set(x, 0, z); P.target = null;
+    const gy = window.GROVE.terrainHeight ? window.GROVE.terrainHeight(x, z) : 0;
+    P.pos.set(x, gy, z); P.target = null;
     if (faceHeading != null) { P.heading = faceHeading; P.avatar.rotation.y = faceHeading; }
   };
 

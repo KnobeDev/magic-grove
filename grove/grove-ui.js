@@ -9,6 +9,24 @@
   let currentStation = null;
   let lastFocus = null;
 
+  /* hosted imagery (shared with the guided walkthrough) */
+  const ASSET_BASE = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b3dc8e562903af2bfb5cbb/';
+  const ASSETS = {
+    infographic: ASSET_BASE + '660935bb0_sequoia-knobe-infographic.png',
+    sapwood: ASSET_BASE + '2536b609c_sapwood_living_sleeve.png',
+    rings: ASSET_BASE + 'bf29c6549_sequoia_rings.jpg',
+    fungalWeb: ASSET_BASE + '556d4b2ea_sequoia_fungal_web.png',
+    mother: ASSET_BASE + '5c8f006f5_mother_of_forest.jpg',
+  };
+  // a contextual photo for certain stations
+  const STATION_IMG = {
+    mother: { src: ASSETS.mother, alt: 'The Mother of the Forest — a giant sequoia stripped of its bark in 1854.', cap: 'The Mother of the Forest, her bark peeled away for exhibition.' },
+    sapwood: { src: ASSETS.sapwood, alt: 'Cross-section showing the pale living sapwood sleeve beneath the bark.', cap: 'The sapwood — the only living wood, a thin living sleeve.' },
+    heartwood: { src: ASSETS.rings, alt: 'A polished sequoia cross-section showing concentric growth rings.', cap: 'The heartwood rings — every year recorded, faithfully.' },
+    roots: { src: ASSETS.fungalWeb, alt: 'Illustration of the underground fungal network linking sequoia roots.', cap: 'The mycorrhizal web — no single point of failure.' },
+  };
+  const FORM_URL = 'https://forms.gle/thLA2FsJXsyDnzsC8';
+
   /* ---------------- progress dots ---------------- */
   U.updateProgress = function () {
     const wrap = $('progress'); if (!wrap) return;
@@ -72,7 +90,15 @@
     $('task-sub').textContent = station.subtitle;
 
     const body = $('task-body');
-    let html = '<div class="intro">' + station.intro.map(p => `<p>${p}</p>`).join('') + '</div>';
+    let html = '<div class="intro">' + station.intro.map(p => `<p>${escapeHtml(p)}</p>`).join('') + '</div>';
+
+    // contextual hosted imagery
+    const img = STATION_IMG[station.id];
+    if (img) {
+      html += `<figure class="station-fig">` +
+        `<img src="${img.src}" alt="${escapeAttr(img.alt)}" loading="lazy" decoding="async">` +
+        `<figcaption>${escapeHtml(img.cap)}</figcaption></figure>`;
+    }
 
     if (station.isSeed && a.project_description) {
       html += `<div class="recall"><div class="rl">What you wrote when you arrived</div>` +
@@ -81,47 +107,85 @@
 
     station.questions.forEach(q => {
       const val = a[q.field] ? escapeHtml(a[q.field]) : '';
+      const taId = 'ta-' + q.field;
       html += `<div class="qblock">` +
-        `<div class="qlabel">${q.label}</div>` +
+        `<div class="qlabel" id="${taId}-l">${q.label}</div>` +
         `<div class="qtext">${q.text}</div>` +
-        `<textarea data-field="${q.field}" placeholder="${escapeAttr(q.placeholder)}">${val}</textarea>` +
+        `<textarea id="${taId}" aria-labelledby="${taId}-l" data-field="${q.field}" placeholder="${escapeAttr(q.placeholder)}">${val}</textarea>` +
         `<div class="knobe-tag">→ <b>KNOBE field:</b> ${q.knobe}</div>` +
         `</div>`;
     });
 
-    if (station.isSeed) {
-      html += `<div class="export-row">` +
-        `<button class="btn" id="exp-copy">Copy to Clipboard</button>` +
-        `<button class="btn" id="exp-email">Email to Myself</button>` +
-        `<button class="btn leaf" id="exp-down">Save .knobe.md</button>` +
-        `</div>` +
-        `<p style="font-size:13px;color:var(--ink-mute);margin:4px 0 0;text-align:center;">` +
-        `Plain text. Open it in any editor, paste into any AI conversation, submit as your Knote. No login. No platform owns it.</p>` +
+    // live SHA-256 readout — visible whenever the visitor is writing
+    if (station.questions.length) {
+      html += `<div class="livehash" aria-live="off">` +
+        `<div class="lh-label">Live SHA-256 fingerprint of your seed</div>` +
+        `<code class="lh-value" data-live-hash>${'·'.repeat(64)}</code>` +
+        `<div class="lh-note">Every character rewrites the entire fingerprint — that is what makes it tamper-evident.</div>` +
+        `</div>`;
+    }
+
+    // closing narrative that follows the questions (the grove's reflection)
+    if (station.outro && station.outro.length) {
+      html += '<div class="intro outro">' + station.outro.map(p => `<p>${escapeHtml(p)}</p>`).join('') + '</div>';
+    }
+
+    // "Explore the living layers" — the layers infographic on the stump
+    if (station.marker === 'stumplayer') {
+      html += `<details class="layers-explore">` +
+        `<summary>Explore the living layers</summary>` +
+        `<figure class="station-fig wide">` +
+        `<img src="${ASSETS.infographic}" alt="Infographic mapping sequoia layers (bark, sapwood, heartwood, roots, cone) to the KNOBE record." loading="lazy" decoding="async">` +
+        `<figcaption>How each layer of the tree maps to a layer of your portable record.</figcaption></figure>` +
         `<div class="keymap">` +
         `<div class="kr"><b>Bark</b><span>SHA-256 seal — proof the record is unaltered</span></div>` +
         `<div class="kr"><b>Sapwood</b><span>Human-readable content — your living prose</span></div>` +
         `<div class="kr"><b>Heartwood</b><span>Schema — structured, machine-readable record</span></div>` +
         `<div class="kr"><b>Roots</b><span>Distributed network — no single point of failure</span></div>` +
         `<div class="kr"><b>Cone / Seed</b><span>.knobe.md — portable, opens anywhere</span></div>` +
-        `</div>`;
+        `</div></details>`;
     }
 
-    html += `<div class="grove-key"><b>Grove Key</b>${station.key}</div>`;
+    // The Parting — a button to return home (or just walk back)
+    if (station.returnsTo) {
+      html += `<div class="export-row">` +
+        `<button class="btn leaf" id="parting-return">Return to the visitor’s center</button>` +
+        `</div>` +
+        `<p class="task-note">Or simply walk back down the path — your seed will be waiting where you began.</p>`;
+    }
+
+    // The Seed — seal & finish
+    if (station.isSeed) {
+      html += `<div class="export-row">` +
+        `<button class="btn leaf" id="seed-seal">Seal my seed</button>` +
+        `</div>` +
+        `<p class="task-note">Sealing folds your record into a final SHA-256 fingerprint and unlocks your portable file.</p>`;
+    }
+
+    html += `<div class="grove-key"><b>Grove Key</b>${escapeHtml(station.key)}</div>`;
     body.innerHTML = html;
     body.scrollTop = 0;
 
     body.querySelectorAll('textarea[data-field]').forEach(ta => {
       ta.addEventListener('input', () => {
         window.GROVE.knobe.setAnswer(ta.dataset.field, ta.value);
+        window.GROVE.knobe.updateLiveHash(ta.dataset.field, ta.value);
         flashSaved();
         U.updateProgress();
       });
     });
-    if (station.isSeed) {
-      $('exp-copy').onclick = () => window.GROVE.knobe.copy();
-      $('exp-email').onclick = () => window.GROVE.knobe.email();
-      $('exp-down').onclick = () => window.GROVE.knobe.download();
-    }
+    // prime the live readout with the current fingerprint
+    if (station.questions.length) window.GROVE.knobe.updateLiveHash();
+
+    const ret = $('parting-return');
+    if (ret) ret.onclick = () => {
+      U.closeTask();
+      const c = window.GROVE.CONFIG;
+      window.GROVE.player.teleport(c.startPos.x, c.startPos.z, c.startHeading);
+      U.toast('Back at the visitor’s center — your seed awaits');
+    };
+    const sealBtn = $('seed-seal');
+    if (sealBtn) sealBtn.onclick = () => U.sealSeed();
 
     lastFocus = document.activeElement;
     const taskEl = $('task');
@@ -143,6 +207,150 @@
     U.updateProgress();
     currentStation = null;
     if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (e) {} }
+  };
+
+  /* =================================================================
+     FALLEN-LOG EXHIBIT — the cross-section easter egg. A trailside
+     panel that reads the living tree (bark / sapwood / heartwood) and
+     flips to the same structure as a digital record (hash / markdown /
+     JSON). Reuses the #task panel and #prompt chrome.
+     ================================================================= */
+  U.showExhibitPrompt = function (ex) {
+    const p = $('prompt');
+    if (!ex) { p.classList.remove('show'); return; }
+    if ($('task').classList.contains('show')) { p.classList.remove('show'); return; }
+    p.className = 'prompt is-exhibit';
+    p.innerHTML =
+      `<div class="p-badge">✦</div>` +
+      `<div class="p-main">` +
+        `<div class="p-layer">Trailside exhibit</div>` +
+        `<div class="p-title">A fallen giant</div>` +
+        `<div class="p-cta">Press <span class="p-key" id="prompt-open">I</span> or click to read its cross-section</div>` +
+      `</div>`;
+    p.classList.add('show');
+    $('prompt-open').onclick = () => U.openExhibit(ex);
+    p.onclick = (e) => { if (e.target.id !== 'prompt-open') U.openExhibit(ex); };
+  };
+
+  // a leader-lined SVG callout diagram (rings or document) shared shape
+  function bioDiagram() {
+    return `<svg class="xsec-svg" viewBox="0 0 360 250" role="img" ` +
+      `aria-label="Cross-section of a giant sequoia trunk: an outer fire-resistant bark layer, a pale living sapwood sleeve, and dense red-brown heartwood growth rings around the pith.">` +
+      `<defs><radialGradient id="hw" cx="42%" cy="42%" r="60%">` +
+        `<stop offset="0%" stop-color="#7a4326"/><stop offset="70%" stop-color="#a35a32"/><stop offset="100%" stop-color="#8c4a28"/></radialGradient></defs>` +
+      `<circle cx="120" cy="125" r="96" fill="#5a3a22"/>` +
+      `<circle cx="120" cy="125" r="86" fill="#cdb079"/>` +
+      `<circle cx="120" cy="125" r="70" fill="url(#hw)"/>` +
+      // heartwood ring strokes
+      [60, 50, 40, 30, 20].map(rr => `<circle cx="120" cy="125" r="${rr}" fill="none" stroke="rgba(60,30,16,0.45)" stroke-width="2.2"/>`).join('') +
+      `<circle cx="120" cy="125" r="11" fill="#4a2614"/>` +
+      // pointers
+      `<g stroke-width="1.6" font-family="'JetBrains Mono',monospace" font-size="13">` +
+        `<circle cx="${120 + 91 * Math.cos(-0.9)}" cy="${125 + 91 * Math.sin(-0.9)}" r="3.5" fill="#e8c98a"/>` +
+        `<line x1="${120 + 91 * Math.cos(-0.9)}" y1="${125 + 91 * Math.sin(-0.9)}" x2="248" y2="40" stroke="#e8c98a"/>` +
+        `<text x="254" y="44" fill="#e8c98a">Bark</text>` +
+        `<circle cx="${120 + 78 * Math.cos(0.35)}" cy="${125 + 78 * Math.sin(0.35)}" r="3.5" fill="#f0d488"/>` +
+        `<line x1="${120 + 78 * Math.cos(0.35)}" y1="${125 + 78 * Math.sin(0.35)}" x2="248" y2="120" stroke="#f0d488"/>` +
+        `<text x="254" y="124" fill="#f0d488">Sapwood</text>` +
+        `<circle cx="${120 + 42 * Math.cos(1.5)}" cy="${125 + 42 * Math.sin(1.5)}" r="3.5" fill="#ef9f72"/>` +
+        `<line x1="${120 + 42 * Math.cos(1.5)}" y1="${125 + 42 * Math.sin(1.5)}" x2="248" y2="206" stroke="#ef9f72"/>` +
+        `<text x="254" y="210" fill="#ef9f72">Heartwood</text>` +
+      `</g></svg>`;
+  }
+  function digitalDiagram() {
+    return `<svg class="xsec-svg" viewBox="0 0 360 250" role="img" ` +
+      `aria-label="Schematic of a digital .knobe.md record: a cryptographic SHA-256 hash banner, a human-readable markdown body, and a block of JSON metadata.">` +
+      `<rect x="24" y="22" width="150" height="206" rx="8" fill="#11160c" stroke="#5b7a3a" stroke-width="1.6"/>` +
+      // hash banner
+      `<rect x="36" y="36" width="126" height="26" rx="4" fill="rgba(217,178,90,0.16)" stroke="#d9b25a" stroke-width="1"/>` +
+      `<text x="42" y="53" font-family="'JetBrains Mono',monospace" font-size="11" fill="#f0d488">9f2a&#8230;c7e1</text>` +
+      // markdown body
+      `<rect x="36" y="78" width="70" height="8" rx="3" fill="#7fae5a"/>` +
+      [98, 112, 126, 140].map(yy => `<rect x="36" y="${yy}" width="${80 + (yy % 24)}" height="5" rx="2.5" fill="#9bb38a"/>`).join('') +
+      // json block
+      `<text x="36" y="178" font-family="'JetBrains Mono',monospace" font-size="11" fill="#cdbf98">{ "author":&#8230;</text>` +
+      `<text x="44" y="194" font-family="'JetBrains Mono',monospace" font-size="11" fill="#cdbf98">"schema":&#8230; }</text>` +
+      `<g stroke-width="1.6" font-family="'JetBrains Mono',monospace" font-size="13">` +
+        `<circle cx="162" cy="49" r="3.5" fill="#f0d488"/><line x1="162" y1="49" x2="232" y2="44" stroke="#f0d488"/>` +
+        `<text x="238" y="48" fill="#f0d488">SHA-256</text>` +
+        `<circle cx="120" cy="112" r="3.5" fill="#9bb38a"/><line x1="120" y1="112" x2="232" y2="120" stroke="#9bb38a"/>` +
+        `<text x="238" y="124" fill="#9bb38a">Markdown</text>` +
+        `<circle cx="138" cy="178" r="3.5" fill="#cdbf98"/><line x1="138" y1="178" x2="232" y2="206" stroke="#cdbf98"/>` +
+        `<text x="238" y="210" fill="#cdbf98">JSON</text>` +
+      `</g></svg>`;
+  }
+  function calloutRow(dot, term, desc, map) {
+    return `<div class="xc"><span class="xc-dot" style="background:${dot}"></span>` +
+      `<div class="xc-body"><b>${term}</b><span>${desc}</span>` +
+      `<em class="xc-map">${map}</em></div></div>`;
+  }
+  function exhibitHTML() {
+    const bio =
+      `<div class="xsec-fig">${bioDiagram()}</div>` +
+      `<figure class="station-fig">` +
+        `<img src="${ASSETS.rings}" alt="A polished giant-sequoia cross-section showing dense concentric growth rings around the pith." loading="lazy" decoding="async">` +
+        `<figcaption>A real cross-section: fire-resistant bark on the outside, a thin living sapwood sleeve, and dense heartwood rings recording every year of growth.</figcaption></figure>` +
+      `<div class="xc-list">` +
+        calloutRow('#e8c98a', 'Fire-resistant bark', 'Two to three feet thick and rich in tannins — soft, fibrous, and almost impossible to burn. It chars, turns the flame, and keeps the living tree alive. Every scar is a record of what was tested and held.', '↳ in a record: the SHA-256 seal that proves nothing was altered.') +
+        calloutRow('#f0d488', 'Living sapwood', 'The pale outer ring — the only living part of the trunk. It lifts water and signals through channels finer than a hair: structured improvisation, a living system that moves meaning.', '↳ in a record: the human-readable content you actually wrote.') +
+        calloutRow('#ef9f72', 'Dense heartwood rings', 'Toward the center the rings darken into heartwood. What was flowing becomes structure; what was alive becomes a record. Every year a ring — drought years thin, good years thick, fire years scarred — recorded faithfully.', '↳ in a record: the structured schema a machine can read.') +
+      `</div>`;
+    const dig =
+      `<div class="xsec-fig">${digitalDiagram()}</div>` +
+      `<figure class="station-fig">` +
+        `<img src="${ASSETS.infographic}" alt="Infographic mapping each layer of a giant sequoia — bark, sapwood, heartwood, roots, cone — to a layer of a portable KNOBE record." loading="lazy" decoding="async">` +
+        `<figcaption>The giant sequoia beside the digital record: every layer of the tree maps to a layer of your portable <code>.knobe.md</code> file.</figcaption></figure>` +
+      `<div class="xc-list">` +
+        calloutRow('#f0d488', 'Cryptographic hash', 'A SHA-256 fingerprint sealing the file. Change one character and the entire fingerprint changes — tamper-evident, the way thick bark proves the tree was never breached.', '↳ like bark: the outer proof the record is whole.') +
+        calloutRow('#9bb38a', 'Markdown text', 'The plain, portable body of your record — living prose, reasoning, and framing. Opens in any editor or AI conversation, no platform required.', '↳ like sapwood: the living, readable content.') +
+        calloutRow('#cdbf98', 'JSON metadata', 'Structured fields — author, time, schema — that any program can parse. The ordered, durable core that makes thinking readable across minds that never met you.', '↳ like heartwood rings: the ordered, machine-readable core.') +
+      `</div>`;
+    return `<div class="xsec">` +
+      `<div class="seg" role="tablist" aria-label="Cross-section views">` +
+        `<button class="seg-btn" role="tab" id="xtab-bio" aria-controls="xpanel-bio" aria-selected="true">The living tree</button>` +
+        `<button class="seg-btn" role="tab" id="xtab-dig" aria-controls="xpanel-dig" aria-selected="false" tabindex="-1">The digital record</button>` +
+      `</div>` +
+      `<div class="xpanel" role="tabpanel" id="xpanel-bio" aria-labelledby="xtab-bio" tabindex="0">${bio}</div>` +
+      `<div class="xpanel" role="tabpanel" id="xpanel-dig" aria-labelledby="xtab-dig" tabindex="0" hidden>${dig}</div>` +
+      `<p class="task-note">Two of these giants have fallen along the trail. Find them both.</p>` +
+      `</div>`;
+  }
+  function wireExhibit(body) {
+    const tabs = [...body.querySelectorAll('.seg-btn')];
+    const select = (tab) => {
+      tabs.forEach(t => {
+        const on = t === tab;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        t.tabIndex = on ? 0 : -1;
+        $(t.getAttribute('aria-controls')).hidden = !on;
+      });
+    };
+    tabs.forEach((t, i) => {
+      t.onclick = () => select(t);
+      t.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        e.preventDefault();
+        const ni = (i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length;
+        select(tabs[ni]); tabs[ni].focus();
+      });
+    });
+  }
+  U.openExhibit = function (ex) {
+    $('prompt').classList.remove('show');
+    window.GROVE.player.freeze(true);
+    $('task-layer').textContent = 'Trailside exhibit · easter egg';
+    $('task-title').textContent = 'Giant Sequoia Trunk Cross-Section';
+    $('task-sub').textContent = 'A fallen giant. Read the structure that let it stand for millennia — then watch it become a portable record.';
+    const body = $('task-body');
+    body.innerHTML = exhibitHTML();
+    body.scrollTop = 0;
+    wireExhibit(body);
+    lastFocus = document.activeElement;
+    const taskEl = $('task');
+    taskEl.classList.add('show');
+    taskEl.setAttribute('aria-hidden', 'false');
+    $('scrim').classList.add('show');
+    setTimeout(() => { const b = body.querySelector('.seg-btn') || $('task-close'); if (b) b.focus(); }, 520);
   };
 
   let savedT = null;
@@ -201,131 +409,127 @@
     joy.addEventListener('touchcancel', end);
   }
 
-  /* ---------------- ambient audio (synth forest bed) ---------------- */
-  const audio = { ctx: null, on: false, gain: null, birdT: null };
-  // Share the audio context with the positional engine (grove-audio.js)
-  // so the station drones never spin up a second AudioContext.
-  window.GROVE._audio = audio;
-  function startAudio() {
-    if (audio.ctx) { resumeAudio(); return; }
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx(); audio.ctx = ctx;
-    const master = ctx.createGain(); master.gain.value = 0.0; master.connect(ctx.destination); audio.gain = master;
-    const bufSize = 2 * ctx.sampleRate;
-    const noise = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-    const data = noise.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
-    const src = ctx.createBufferSource(); src.buffer = noise; src.loop = true;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; lp.Q.value = 0.6;
-    const windGain = ctx.createGain(); windGain.gain.value = 0.22;
-    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.07;
-    const lfoGain = ctx.createGain(); lfoGain.gain.value = 200;
-    lfo.connect(lfoGain); lfoGain.connect(lp.frequency);
-    src.connect(lp); lp.connect(windGain); windGain.connect(master);
-    src.start(); lfo.start();
-    function chirp() {
-      if (!audio.on) { audio.birdT = setTimeout(chirp, 3000); return; }
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      const base = 1800 + Math.random() * 1600;
-      o.type = 'sine'; o.frequency.value = base;
-      const now = ctx.currentTime;
-      const notes = 2 + (Math.random() * 3 | 0);
-      for (let n = 0; n < notes; n++) o.frequency.setValueAtTime(base * (0.8 + Math.random() * 0.5), now + n * 0.09);
-      g.gain.setValueAtTime(0, now);
-      g.gain.linearRampToValueAtTime(0.045, now + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + notes * 0.09 + 0.1);
-      o.connect(g); g.connect(master); o.start(now); o.stop(now + notes * 0.09 + 0.15);
-      audio.birdT = setTimeout(chirp, 2600 + Math.random() * 6000);
-    }
-    audio.birdT = setTimeout(chirp, 2000);
-    resumeAudio();
+  /* =================================================================
+     SEAL THE SEED — the closing moment. Compute the final SHA-256,
+     play a brief "performing the work" animation, then reveal the
+     achievement with the export options and the feedback form.
+     ================================================================= */
+  function reducedMotion() {
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
-  function resumeAudio() {
-    if (!audio.ctx) return startAudio();
-    audio.ctx.resume();
-    audio.on = true;
-    audio.gain.gain.linearRampToValueAtTime(0.5, audio.ctx.currentTime + 1.2);
-    if (window.GROVE.spatial) window.GROVE.spatial.setEnabled(true);  // station drones on
-    setAudioIcon(true);
-  }
-  function pauseAudio() {
-    if (!audio.ctx) return;
-    audio.on = false;
-    audio.gain.gain.linearRampToValueAtTime(0.0, audio.ctx.currentTime + 0.4);
-    if (window.GROVE.spatial) window.GROVE.spatial.setEnabled(false); // station drones off
-    setAudioIcon(false);
-  }
-  U.toggleAudio = function () { audio.on ? pauseAudio() : resumeAudio(); };
-  U.startAudio = startAudio;
 
-  // Echolocation: fire the sonar ping owned by the player. A user gesture
-  // (button/key) reaches here, so resume the audio context first.
-  U.echoPing = function () {
-    if (window.GROVE.spatial) window.GROVE.spatial.resume();
-    if (window.GROVE.player && window.GROVE.player.echoPing) window.GROVE.player.echoPing();
-    const btn = $('tool-echo');
-    if (btn) {
-      btn.classList.remove('pinging');
-      void btn.offsetWidth;            // restart the CSS animation
-      btn.classList.add('pinging');
-      setTimeout(() => btn.classList.remove('pinging'), 1200);
+  function ensureOverlays() {
+    if ($('seal-anim')) return;
+    const seal = document.createElement('div');
+    seal.id = 'seal-anim'; seal.className = 'overlay seal-anim';
+    seal.setAttribute('aria-hidden', 'true');
+    seal.innerHTML =
+      `<div class="seal-card">` +
+        `<div class="seal-spinner" aria-hidden="true"></div>` +
+        `<div class="seal-title">Performing the work…</div>` +
+        `<div class="seal-sub">Folding every layer into a single SHA-256 fingerprint</div>` +
+        `<code class="seal-stream" id="seal-stream" aria-hidden="true"></code>` +
+      `</div>`;
+    document.body.appendChild(seal);
+
+    // SR-only live region kept OUTSIDE the aria-hidden overlay so the
+    // sealing status is announced even while the visual card is gated.
+    const status = document.createElement('p');
+    status.id = 'seal-status'; status.className = 'sr-only';
+    status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+    document.body.appendChild(status);
+
+    const ach = document.createElement('div');
+    ach.id = 'achievement'; ach.className = 'overlay achievement';
+    ach.setAttribute('aria-hidden', 'true');
+    ach.setAttribute('role', 'dialog'); ach.setAttribute('aria-modal', 'true');
+    ach.setAttribute('aria-labelledby', 'ach-title');
+    ach.innerHTML =
+      `<div class="ach-card">` +
+        `<div class="ach-badge" aria-hidden="true">✦</div>` +
+        `<h2 id="ach-title" class="ach-title">Your seed is sealed</h2>` +
+        `<p class="ach-sub">A self-contained record of your thinking — verifiable, portable, and yours. ` +
+          `Plain text, a few kilobytes; it opens in any editor or AI conversation, with no login and no platform that owns it.</p>` +
+        `<div class="ach-hashwrap"><span class="ach-hlabel">SHA-256 seal</span>` +
+          `<code class="ach-hash" id="ach-hash"></code></div>` +
+        `<div class="export-row">` +
+          `<button class="btn" id="ach-copy">Copy to clipboard</button>` +
+          `<button class="btn" id="ach-email">Email to myself</button>` +
+          `<button class="btn leaf" id="ach-down">Save .knobe.md</button>` +
+        `</div>` +
+        `<a class="btn form-btn" id="ach-form" href="${FORM_URL}" target="_blank" rel="noopener">Share your experience <span class="sr-only">(opens in a new tab)</span>→</a>` +
+        `<button class="ach-close" id="ach-close">Return to the grove</button>` +
+      `</div>`;
+    document.body.appendChild(ach);
+    $('ach-copy').onclick = () => window.GROVE.knobe.copy();
+    $('ach-email').onclick = () => window.GROVE.knobe.email();
+    $('ach-down').onclick = () => window.GROVE.knobe.download();
+    $('ach-close').onclick = () => hideAchievement();
+    ach.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); hideAchievement(); return; }
+      if (e.key !== 'Tab') return;
+      // keep focus inside the modal dialog (SC 2.1.2 / 2.4.3)
+      const f = ach.querySelectorAll('a[href], button:not([disabled])');
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+  }
+
+  let _streamT = null;
+  function showSeal(on) {
+    ensureOverlays();
+    const el = $('seal-anim');
+    el.classList.toggle('show', on);
+    el.setAttribute('aria-hidden', on ? 'false' : 'true');
+    const status = $('seal-status');
+    if (status) status.textContent = on ? 'Sealing your seed — performing the work.' : '';
+    clearInterval(_streamT); _streamT = null;
+    if (on && !reducedMotion()) {
+      const stream = $('seal-stream');
+      _streamT = setInterval(() => {
+        let s = '';
+        for (let i = 0; i < 64; i++) s += '0123456789abcdef'[(Math.random() * 16) | 0];
+        if (stream) stream.textContent = s;
+      }, 60);
     }
+  }
+
+  function showAchievement(hash) {
+    ensureOverlays();
+    clearInterval(_streamT); _streamT = null;
+    $('ach-hash').textContent = hash || 'unavailable in this context (needs HTTPS)';
+    const el = $('achievement');
+    el.classList.add('show');
+    el.setAttribute('aria-hidden', 'false');
+    setTimeout(() => { const b = $('ach-close'); if (b) b.focus(); }, 360);
+  }
+
+  function hideAchievement() {
+    const el = $('achievement');
+    if (el) { el.classList.remove('show'); el.setAttribute('aria-hidden', 'true'); }
+    U.closeTask();
+  }
+
+  let _sealing = false;
+  U.sealSeed = async function () {
+    if (_sealing) return;             // guard against double-seal race
+    _sealing = true;
+    showSeal(true);
+    try { await window.GROVE.knobe.computeHash(); } catch (e) { /* insecure ctx */ }
+    const finish = () => { _sealing = false; showSeal(false); showAchievement(window.GROVE.knobe.hash); };
+    if (reducedMotion()) finish(); else setTimeout(finish, 1900);
   };
 
-  /* ---- one-shot SFX: rock thunk / knock (procedural, no files) ----
-     Plays through its own gain so it's audible even when the ambient
-     bed is muted. strength 0..1 = how hard the impact; pan -1..1.       */
-  U.playThunk = function (strength, pan, woody) {
-    let ctx = audio.ctx;
-    if (!ctx) {
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx) return;
-      ctx = new Ctx(); audio.ctx = ctx;
-      const m = ctx.createGain(); m.gain.value = 0.0; m.connect(ctx.destination); audio.gain = m;
-    }
-    if (ctx.state === 'suspended') ctx.resume();
-    const now = ctx.currentTime;
-    const s = Math.max(0.12, Math.min(1, strength || 0.5));
-    const out = ctx.createGain();
-    out.gain.value = 1;
-    const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-    if (panner) { panner.pan.value = Math.max(-1, Math.min(1, pan || 0)); out.connect(panner); panner.connect(ctx.destination); }
-    else out.connect(ctx.destination);
-
-    // low thud — a fast pitch-dropping sine, the "body" of the impact
-    const o = ctx.createOscillator(), og = ctx.createGain();
-    o.type = 'sine';
-    const f0 = woody ? 230 : 150;
-    o.frequency.setValueAtTime(f0 * (0.9 + s * 0.5), now);
-    o.frequency.exponentialRampToValueAtTime(f0 * 0.45, now + 0.12);
-    og.gain.setValueAtTime(0, now);
-    og.gain.linearRampToValueAtTime(0.5 * s, now + 0.006);
-    og.gain.exponentialRampToValueAtTime(0.0008, now + 0.16 + s * 0.1);
-    o.connect(og); og.connect(out); o.start(now); o.stop(now + 0.32);
-
-    // click/scrape — short filtered noise burst for the "tk" transient
-    const len = Math.floor(ctx.sampleRate * 0.09);
-    const nb = ctx.createBuffer(1, len, ctx.sampleRate);
-    const nd = nb.getChannelData(0);
-    for (let i = 0; i < len; i++) nd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
-    const ns = ctx.createBufferSource(); ns.buffer = nb;
-    const bp = ctx.createBiquadFilter();
-    bp.type = woody ? 'bandpass' : 'lowpass';
-    bp.frequency.value = woody ? 900 + s * 700 : 1600;
-    bp.Q.value = woody ? 1.4 : 0.7;
-    const ng = ctx.createGain();
-    ng.gain.setValueAtTime(0.34 * s, now);
-    ng.gain.exponentialRampToValueAtTime(0.0006, now + 0.08);
-    ns.connect(bp); bp.connect(ng); ng.connect(out); ns.start(now); ns.stop(now + 0.1);
-  };
-  function setAudioIcon(on) {
-    const btn = $('tool-audio'); if (!btn) return;
+  function setMusicIcon(on) {
+    const btn = $('tool-music'); if (!btn) return;
     btn.classList.toggle('on', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.setAttribute('aria-label', on ? 'Mute ambient sound' : 'Play ambient sound');
-    btn.querySelector('.a-on').style.display = on ? '' : 'none';
-    btn.querySelector('.a-off').style.display = on ? 'none' : '';
+    btn.setAttribute('aria-label', on ? 'Stop the guiding sound' : 'Play the guiding sound toward your next stop');
+    // reveal the volume slider only while the sound is on
+    const wrap = $('volume-wrap');
+    if (wrap) wrap.hidden = !on;
   }
 
   /* ---------------- helpers ---------------- */
@@ -356,14 +560,43 @@
     $('scrim').onclick = U.closeTask;
     $('seed-toggle').onclick = () => U.toggleSidebar();
     $('sb-close').onclick = () => U.toggleSidebar(false);
-    $('tool-audio').onclick = U.toggleAudio;
-    const echoBtn = $('tool-echo');
-    if (echoBtn) echoBtn.onclick = () => U.echoPing();
     $('tool-fs').onclick = () => {
       if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
       else document.exitFullscreen?.();
     };
     $('tool-seed').onclick = () => U.toggleSidebar();
+
+    // Day / night toggle — moonlit grove with drifting fireflies. The drifting
+    // motes (the falling-leaf ambience) stay; night just dims the sun to
+    // moonlight, mutes the sunbeams, and brings the fireflies out.
+    const nightBtn = $('tool-night');
+    if (nightBtn) nightBtn.onclick = () => {
+      const on = !window.GROVE.isNight;
+      if (window.GROVE.setNight) window.GROVE.setNight(on);
+      nightBtn.classList.toggle('on', on);
+      nightBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      nightBtn.setAttribute('aria-label', on ? 'Switch to daytime grove' : 'Switch to night grove with fireflies');
+      U.toast(on ? 'Night falls — fireflies wake among the trees' : 'Daylight returns to the grove');
+    };
+
+    // Spatial guiding sound (rain + birdsong). Off by default; explicit
+    // user gesture only. It emanates from the active station with true
+    // HRTF panning — louder in the ear toward the stop, swelling as you
+    // near it — so you can navigate to your next stop by ear.
+    const musicBtn = $('tool-music');
+    if (musicBtn) musicBtn.onclick = () => {
+      if (!window.GROVE.spatial) return;
+      const on = window.GROVE.spatial.toggle();
+      setMusicIcon(on);
+      U.toast(on ? 'Listen — the sound comes from your next stop. Follow it.' : 'Guiding sound off');
+    };
+    // Volume slider — visitor-adjustable level (hearing differs). Persisted by
+    // the spatial engine; reflect its stored value into the slider on load.
+    const volSlider = $('volume-slider');
+    if (volSlider && window.GROVE.spatial) {
+      volSlider.value = Math.round(window.GROVE.spatial.getVolume() * 100);
+      volSlider.oninput = () => window.GROVE.spatial.setVolume(volSlider.value / 100);
+    }
     const onPathToggle = () => {
       const on = window.GROVE.stations.togglePath();
       U.toast(on ? 'Footpath lit — follow it to your next stop' : 'Footpath hidden');

@@ -23,13 +23,50 @@
     if (window.GROVE.stations) window.GROVE.stations.refresh();
   };
 
+  async function sha256Hex(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
   K.computeHash = async function () {
     try {
       const content = window.GROVE.CLAIM_FIELDS.map(f => K.answers[f] || '').join('\n---\n');
-      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content));
-      K.hash = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      K.hash = await sha256Hex(content);
       K.updatePreview();
     } catch (e) { /* insecure context — skip */ }
+  };
+
+  /* Live hash for the teaching moment: every keystroke re-digests the whole
+     seed so the visitor watches the fingerprint churn with each character.
+     `field`/`val` lets us preview the textarea's value before it is committed
+     to K.answers. Writes the hex to any element marked [data-live-hash]. */
+  K.liveContent = function (field, val) {
+    const a = K.answers;
+    const body = window.GROVE.FIELDS
+      .map(f => (f === field ? (val || '') : (a[f] || ''))).join('\n---\n');
+    return body + '\n::' + (K.name || 'Anonymous');
+  };
+  K.updateLiveHash = async function (field, val) {
+    const els = document.querySelectorAll('[data-live-hash]');
+    if (!els.length) return null;
+    try {
+      const hex = await sha256Hex(K.liveContent(field, val));
+      els.forEach(e => {
+        // animate only the digits that actually changed
+        if (e.dataset.prev && e.dataset.prev.length === hex.length) {
+          let html = '';
+          for (let i = 0; i < hex.length; i++) {
+            html += (hex[i] !== e.dataset.prev[i])
+              ? `<span class="hx-flip">${hex[i]}</span>` : hex[i];
+          }
+          e.innerHTML = html;
+        } else {
+          e.textContent = hex;
+        }
+        e.dataset.prev = hex;
+      });
+      return hex;
+    } catch (e) { return null; }
   };
 
   K.updatePreview = function () {

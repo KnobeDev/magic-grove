@@ -112,36 +112,59 @@
   }
   let _ringTex = null;
 
+  // footprint reach per marker kind (no big trunk for signs/roots/cone/layers)
+  const MARKER_R = {
+    sign: 1.8, stumpstory: 1.8, parting: 1.8, barktree: 4.6,
+    stumplayer: 1.6, roots: 2.4, cone: 2.0, altar: 2.9,
+  };
+  function trunkRadius(st) { return st._trunkR || MARKER_R[st.marker] || 3.5; }
+
+  function terrainAt(x, z) {
+    return window.GROVE.terrainHeight ? window.GROVE.terrainHeight(x, z) : 0;
+  }
+
   function buildMarker(station) {
     const g = new T.Group();
-    g.position.set(station.pos.x, 0, station.pos.z);
-    const trunkR = station._trunkR || (station.marker === 'altar' ? 2.9 : 4.2);
-    // glowing rune ring on the ground, just outside the trunk
+    const baseY = terrainAt(station.pos.x, station.pos.z);   // ride the stump top
+    g.position.set(station.pos.x, baseY, station.pos.z);
+    const trunkR = trunkRadius(station);
+    const onStump = station.marker === 'stumplayer';
+    const isTunnel = station.marker === 'barktree';
+    // shorter, tighter glow for the small props so they don't tower
+    const beamH = onStump ? 6 : (trunkR > 4 ? 9 : 7);
+    // the tunnel tree's medallion drops into the open archway mouth (low, and
+    // pushed south past the trunk face) so it reads clearly instead of hiding
+    // up at the lintel behind the resuming upper trunk.
+    const sprBaseY = isTunnel ? 4.2 : onStump ? 4.2 : (trunkR > 4 ? 5.6 : 4.6);
+    const sprZ = isTunnel ? trunkR + 3.5 : trunkR + 1.5;
+    // glowing rune ring on the ground, just outside the prop
     _ringTex = _ringTex || ringTex();
-    const ringR = trunkR + 3.2;
+    const ringR = trunkR + 3.0;
     const ring = new T.Mesh(new T.PlaneGeometry(ringR * 2, ringR * 2),
       new T.MeshBasicMaterial({ map: _ringTex, transparent: true, depthWrite: false, blending: T.AdditiveBlending, opacity: 0.7, fog: false }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.08; g.add(ring); g.userData.ring = ring;
     // a soft warm glow column
-    const beam = new T.Mesh(new T.CylinderGeometry(0.5, 1.4, 9, 12, 1, true),
+    const beam = new T.Mesh(new T.CylinderGeometry(0.5, 1.4, beamH, 12, 1, true),
       new T.MeshBasicMaterial({ color: col('#ffd27a'), transparent: true, opacity: 0.12, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide, fog: false }));
-    beam.position.y = 4.5; g.add(beam); g.userData.beam = beam;
+    beam.position.y = beamH / 2; g.add(beam); g.userData.beam = beam;
     const light = new T.PointLight(col('#ffcf86'), 2.4, 20, 2);
     light.position.set(0, 3, 0); g.add(light); g.userData.light = light;
-    // floating numbered medallion, hovering in front of the trunk toward clearing center
-    const spr = new T.Sprite(new T.SpriteMaterial({ transparent: true, depthTest: true, depthWrite: false }));
-    const toCenter = new T.Vector2(-station.pos.x, -station.pos.z);
-    if (toCenter.lengthSq() < 0.01) toCenter.set(0, 1);
-    toCenter.normalize();
-    spr.position.set(toCenter.x * (trunkR + 1.5), 5.6, toCenter.y * (trunkR + 1.5));
-    spr.renderOrder = 4;
+    // floating numbered medallion — offset toward the walker's approach (south).
+    // The tunnel tree wraps geometry AROUND its medallion, so depth-testing lets
+    // the arch/trunk eat it — draw it depth-test-free and on top there so it stays
+    // readable in the archway no matter the angle.
+    const spr = new T.Sprite(new T.SpriteMaterial({ transparent: true, depthTest: !isTunnel, depthWrite: false }));
+    spr.position.set(0, sprBaseY, sprZ);   // +Z = south, toward the path
+    spr.renderOrder = isTunnel ? 12 : 4;
     g.add(spr); g.userData.spr = spr;
 
     g.userData.station = station;
     g.userData.ph = Math.random() * 7;
-    g.userData.sprBaseY = 5.6;
+    g.userData.sprBaseY = sprBaseY;
     g.userData.medState = null;
     setMedallion(g, 'upcoming');
+    // the Seed altar marker stays hidden until The Parting reveals it
+    if (station.hiddenUntilReturn) g.visible = false;
     S.markers.push(g);
     return g;
   }
@@ -157,7 +180,12 @@
      count only once the visitor has actually opened them (so the
      sequence highlight never skips ahead or pre-checks a stop) */
   const VISITED = new Set();
+  S.seedRevealed = false;
+  // the Seed stays out of the sequence until The Parting sends you home
+  function isHidden(station) { return station.hiddenUntilReturn && !S.seedRevealed; }
+
   function isComplete(station) {
+    if (isHidden(station)) return false;
     const a = window.GROVE.knobe ? window.GROVE.knobe.answers : {};
     const hasRequired = station.questions.some(q => !/Optional/i.test(q.label));
     const requiredAnswered = station.questions.every(q =>
@@ -168,47 +196,91 @@
   S.markVisited = function (id) { VISITED.add(id); S.refresh(); };
   S.isComplete = (st) => isComplete(st);
 
-  // the recommended next station = first incomplete in order
+  /* Reveal the Seed back at the visitor's center once The Parting is done. */
+  S.revealSeed = function () {
+    if (S.seedRevealed) return;
+    S.seedRevealed = true;
+    const m = S.markers.find(mk => mk.userData.station.isSeed);
+    if (m) m.visible = true;
+    if (window.GROVE.revealSeed) window.GROVE.revealSeed();   // env: altar mesh + blocker
+    S.refresh();
+    if (window.GROVE.ui && window.GROVE.ui.toast)
+      window.GROVE.ui.toast('A seed has appeared at the visitor\u2019s center');
+  };
+
+  // the recommended next station = first incomplete in order (skipping hidden)
   function nextIndex() {
     for (let i = 0; i < window.GROVE.STATIONS.length; i++) {
-      if (!isComplete(window.GROVE.STATIONS[i])) return i;
+      const st = window.GROVE.STATIONS[i];
+      if (isHidden(st)) continue;
+      if (!isComplete(st)) return i;
     }
     return -1;
   }
   S.nextIndex = nextIndex;
 
   S.refresh = function () {
+    // completing The Parting opens the way back to the Seed
+    const parting = window.GROVE.STATIONS.find(st => st.returnsTo);
+    if (parting && !S.seedRevealed && isComplete(parting)) { S.revealSeed(); return; }
     const ni = nextIndex();
     S.markers.forEach((m, i) => {
-      const done = isComplete(m.userData.station);
+      const st = m.userData.station;
+      if (isHidden(st)) { m.visible = false; return; }
+      m.visible = true;
+      const done = isComplete(st);
       m.userData.done = done;
       m.userData.isNext = (i === ni);
       setMedallion(m, done ? 'done' : (i === ni ? 'next' : 'upcoming'));
     });
-    if (window.GROVE.ui) window.GROVE.ui.updateProgress(
-      window.GROVE.STATIONS.filter(isComplete).length, window.GROVE.STATIONS.length);
+    // Section 07 (Heartwood) complete → the underground root network lights up and stays
+    if (window.GROVE.revealRoots) {
+      const s7 = window.GROVE.STATIONS[6];
+      if (s7 && isComplete(s7)) window.GROVE.revealRoots();
+    }
+    if (window.GROVE.ui) window.GROVE.ui.updateProgress();
   };
 
-  /* ---------- proximity ---------- */
+  /* ---------- proximity (stations + fallen-log exhibits) ---------- */
   let _near = null;
+  S.activeKind = null;
   S.checkProximity = function (pos) {
-    let best = null, bestD = C.proximity;
+    let best = null, bestD = Infinity, kind = null;
     for (const m of S.markers) {
       const st = m.userData.station;
+      if (isHidden(st)) continue;                      // seed is silent until revealed
       const d = Math.hypot(pos.x - st.pos.x, pos.z - st.pos.z);
-      const reach = (st._trunkR || 4) + C.proximity;   // larger trees → reach from farther
-      if (d < reach && (!best || d < bestD)) { best = m; bestD = d; }
+      const reach = trunkRadius(st) + C.proximity;     // larger props → reach from farther
+      if (d < reach && d < bestD) { best = st; bestD = d; kind = 'station'; }
     }
-    const st = best ? best.userData.station : null;
-    if (st !== _near) {
-      _near = st;
-      S.active = st;
-      if (window.GROVE.ui) window.GROVE.ui.showPrompt(st);
+    const exhibits = window.GROVE.logExhibits || [];
+    for (const e of exhibits) {
+      const d = Math.hypot(pos.x - e.x, pos.z - e.z);
+      if (d < C.proximity + 2 && d < bestD) { best = e; bestD = d; kind = 'exhibit'; }
+    }
+    if (best !== _near) {
+      // knock ONLY when stepping into the active element — the station the
+      // wayfinding currently leads to (next incomplete). Props you pass before
+      // it is their turn stay quiet; exhibits aren't part of the guided sequence.
+      if (best && kind === 'station' &&
+          window.GROVE.STATIONS.indexOf(best) === nextIndex() &&
+          window.GROVE.spatial && window.GROVE.spatial.knock) {
+        window.GROVE.spatial.knock();
+      }
+      _near = best;
+      S.active = best;
+      S.activeKind = kind;
+      if (window.GROVE.ui) {
+        if (kind === 'exhibit') window.GROVE.ui.showExhibitPrompt(best);
+        else window.GROVE.ui.showPrompt(best);         // station or null → hides
+      }
     }
   };
 
   S.openActive = function () {
-    if (S.active && window.GROVE.ui) window.GROVE.ui.openTask(S.active);
+    if (!S.active || !window.GROVE.ui) return;
+    if (S.activeKind === 'exhibit') window.GROVE.ui.openExhibit(S.active);
+    else window.GROVE.ui.openTask(S.active);
   };
   S.getActive = function () { return S.active; };
 
@@ -217,7 +289,8 @@
      visitor to the next incomplete station. Toggle with GROVE.stations
      .togglePath(). Hidden while a task panel is open.
      ================================================================= */
-  const PATH = { group: null, prints: [], visible: true };
+  const PATH = { group: null, prints: [], visible: true, route: null, routeKey: '' };
+  const ROUTE_CLEAR = 1.6;   // keep footfalls this far outside any blocker edge
 
   function footstepTex() {
     const Sz = 128, cv = document.createElement('canvas'); cv.width = cv.height = Sz;
@@ -259,6 +332,70 @@
 
   function hidePath() { for (const p of PATH.prints) p.visible = false; }
 
+  /* ---- obstacle-aware wayfinding route ----
+     The footpath used to be a straight line from the visitor to the next stop,
+     so it plowed through trunks. Instead we build a polyline that steers around
+     GROVE.blockers (each {x,z,r}) and flow the footprints along its arc length.
+     Recomputed only when the player/target/obstacle-set changes meaningfully. */
+
+  // deepest blocker the segment A→B passes through (within ROUTE_CLEAR), or null.
+  // Blockers belonging to the destination prop (within skipR of B) are ignored —
+  // the path stops short of the prop anyway, so its own trunk must not deflect it.
+  function segBlocker(ax, az, bx, bz, skipR) {
+    const blk = window.GROVE.blockers || [];
+    const ex = bx - ax, ez = bz - az;
+    const L2 = ex * ex + ez * ez || 1;
+    let hit = null, worst = 0;
+    for (const b of blk) {
+      if (Math.hypot(b.x - bx, b.z - bz) <= skipR) continue;
+      let t = ((b.x - ax) * ex + (b.z - az) * ez) / L2;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const cx = ax + ex * t, cz = az + ez * t;
+      const d = Math.hypot(b.x - cx, b.z - cz);
+      const need = b.r + ROUTE_CLEAR;
+      if (d < need) { const pen = need - d; if (pen > worst) { worst = pen; hit = { b: b, cx: cx, cz: cz }; } }
+    }
+    return hit;
+  }
+
+  // recursively insert a clearance waypoint around the first blocker hit
+  function routeSeg(ax, az, bx, bz, skipR, out, depth) {
+    const hit = depth < 6 ? segBlocker(ax, az, bx, bz, skipR) : null;
+    if (!hit) { out.push({ x: bx, z: bz }); return; }
+    const dx = bx - ax, dz = bz - az, L = Math.hypot(dx, dz) || 1;
+    const px = -dz / L, pz = dx / L;                       // unit perpendicular
+    const dPerp = (hit.cx - hit.b.x) * px + (hit.cz - hit.b.z) * pz;
+    const sign = dPerp >= 0 ? 1 : -1;                      // pass on the side the line already favors
+    const off = hit.b.r + ROUTE_CLEAR + 0.4;
+    const wx = hit.b.x + px * sign * off, wz = hit.b.z + pz * sign * off;
+    routeSeg(ax, az, wx, wz, skipR, out, depth + 1);
+    routeSeg(wx, wz, bx, bz, skipR, out, depth + 1);
+  }
+
+  function buildRoute(ax, az, bx, bz, skipR) {
+    const pts = [{ x: ax, z: az }];
+    routeSeg(ax, az, bx, bz, skipR, pts, 0);
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum[i] = cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z);
+    return { pts: pts, cum: cum, len: cum[cum.length - 1] };
+  }
+
+  // position + unit heading at a given arc length along the route
+  function sampleRoute(route, arc) {
+    const pts = route.pts, cum = route.cum;
+    for (let i = 1; i < pts.length; i++) {
+      if (arc <= cum[i] || i === pts.length - 1) {
+        const segLen = cum[i] - cum[i - 1] || 1;
+        const f = Math.max(0, Math.min(1, (arc - cum[i - 1]) / segLen));
+        let hx = pts[i].x - pts[i - 1].x, hz = pts[i].z - pts[i - 1].z;
+        const h = Math.hypot(hx, hz) || 1;
+        return { x: pts[i - 1].x + hx * f, z: pts[i - 1].z + hz * f, hx: hx / h, hz: hz / h };
+      }
+    }
+    const last = pts[pts.length - 1];
+    return { x: last.x, z: last.z, hx: 0, hz: 1 };
+  }
+
   function updatePath(tt) {
     if (!PATH.group) return;
     const player = window.GROVE.player;
@@ -269,24 +406,32 @@
 
     const st = window.GROVE.STATIONS[ni];
     const ax = player.pos.x, az = player.pos.z, bx = st.pos.x, bz = st.pos.z;
-    let dx = bx - ax, dz = bz - az;
-    const dist = Math.hypot(dx, dz) || 1; dx /= dist; dz /= dist;
-    const reach = (st._trunkR || 4) + 3.5;
-    const start = 2.4, end = Math.max(start, dist - reach);
+    const reach = trunkRadius(st) + 3.5;
+
+    // recompute the avoiding route only when something material changed
+    const blkN = (window.GROVE.blockers || []).length;
+    const key = ni + ':' + Math.round(ax / 2) + ':' + Math.round(az / 2) + ':' + blkN;
+    if (key !== PATH.routeKey || !PATH.route) {
+      PATH.route = buildRoute(ax, az, bx, bz, reach);
+      PATH.routeKey = key;
+    }
+    const route = PATH.route;
+    const start = 2.4, end = route.len - reach;
     const span = end - start;
     if (span < 1.5) { hidePath(); return; }       // already there
-    const heading = Math.atan2(dx, dz);
+
     const N = PATH.prints.length;
     const flow = (tt * 0.85) % 1;
     for (let i = 0; i < N; i++) {
-      const f = (i + flow) / N;                    // 0 (near visitor) → 1 (near tree)
-      const along = start + f * span;
+      const f = (i + flow) / N;                    // 0 (near visitor) → 1 (near prop)
+      const s = sampleRoute(route, start + f * span);
       const side = (i % 2 ? 1 : -1) * 0.36;        // alternate left / right footfalls
-      const px = ax + dx * along - dz * side;
-      const pz = az + dz * along + dx * side;
+      const px = s.x - s.hz * side;
+      const pz = s.z + s.hx * side;
+      const heading = Math.atan2(s.hx, s.hz);
       const p = PATH.prints[i];
       p.visible = true;
-      p.position.set(px, 0.12, pz);
+      p.position.set(px, terrainAt(px, pz) + 0.12, pz);   // follow the stump ramp
       p.rotation.set(-Math.PI / 2, 0, heading);
       const fade = Math.min(1, f / 0.10, (1 - f) / 0.14);
       const pulse = 0.55 + 0.45 * Math.sin(tt * 3 - i * 0.6);
@@ -322,6 +467,14 @@
       }
     });
     updatePath(tt);
+
+    // Emit the spatial guiding sound FROM the next incomplete stop, so its
+    // HRTF panning + distance pull the visitor toward it. null when none
+    // remain. Only audible once the visitor turned the sound on.
+    if (window.GROVE.spatial) {
+      const next = ni >= 0 ? window.GROVE.STATIONS[ni] : null;
+      window.GROVE.spatial.setTarget(next ? next.pos : null);
+    }
   };
 
   window.GROVE.stations = S;

@@ -79,19 +79,41 @@
     if (_needle) return _needle;
     const S = 256, cv = document.createElement('canvas'); cv.width = cv.height = S;
     const g = cv.getContext('2d');
-    for (let i = 0; i < 240; i++) {
-      const x = S / 2 + (Math.random() - 0.5) * S * 0.9;
-      const y = S / 2 + (Math.random() - 0.5) * S * 0.9;
+    g.lineCap = 'round';
+    // feathery sprays: a central rib with fine side-needles, sage→chartreuse,
+    // brighter toward the rim (sunlit edge of a sequoia frond)
+    const greens = ['#3f6b30', '#4f7d38', '#5c8a3e', '#356026', '#7da247', '#94bb55'];
+    for (let i = 0; i < 150; i++) {
+      const x = S / 2 + (Math.random() - 0.5) * S * 0.92;
+      const y = S / 2 + (Math.random() - 0.5) * S * 0.92;
       const d = Math.hypot(x - S / 2, y - S / 2) / (S / 2);
-      if (Math.random() < d * 0.8) continue;
-      const len = 8 + Math.random() * 26;
+      if (Math.random() < d * 0.78) continue;
       const ang = Math.random() * Math.PI * 2;
-      const greens = ['#3f6b30', '#4f7d38', '#5c8a3e', '#356026'];
-      g.strokeStyle = greens[(Math.random() * greens.length) | 0];
-      g.globalAlpha = 0.5 + Math.random() * 0.5;
-      g.lineWidth = 1 + Math.random() * 1.6;
+      const ribLen = 14 + Math.random() * 34;
+      const ex = Math.cos(ang), ey = Math.sin(ang);
+      // outer sprays read sunlit (last two brighter greens), inner stay shaded
+      const bright = d > 0.55;
+      const pick = bright ? 4 + ((Math.random() * 2) | 0) : (Math.random() * 4) | 0;
+      g.strokeStyle = greens[pick];
+      g.globalAlpha = (bright ? 0.55 : 0.42) + Math.random() * 0.45;
+      // central rib
+      g.lineWidth = 1.1 + Math.random() * 1.3;
       g.beginPath(); g.moveTo(x, y);
-      g.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len); g.stroke();
+      g.lineTo(x + ex * ribLen, y + ey * ribLen); g.stroke();
+      // side needles fanning off the rib
+      const px = -ey, py = ex;
+      const needles = 4 + ((Math.random() * 4) | 0);
+      g.lineWidth = 0.7 + Math.random() * 0.9;
+      for (let k = 1; k <= needles; k++) {
+        const t = k / (needles + 1);
+        const bx = x + ex * ribLen * t, by = y + ey * ribLen * t;
+        const nl = (1 - t) * ribLen * 0.42 + 2;
+        const side = (k % 2 ? 1 : -1);
+        g.beginPath(); g.moveTo(bx, by);
+        g.lineTo(bx + (ex * 0.45 + px * side * 0.9) * nl,
+                 by + (ey * 0.45 + py * side * 0.9) * nl);
+        g.stroke();
+      }
     }
     g.globalAlpha = 1;
     _needle = new T.CanvasTexture(cv); _needle.colorSpace = T.SRGBColorSpace;
@@ -142,73 +164,101 @@
     return mesh;
   }
 
-  /* ---------- canopy: soft billboarded clusters high up ---------- */
+  /* ---------- a tapered limb between two points (cylinders point +Y, so
+     we orient by the vector from base→tip). Used for the crown leader and
+     every branch, so nothing ever floats free of the tree. ---------- */
+  const _UP = new T.Vector3(0, 1, 0);
+  const _dir = new T.Vector3();
+  function limb(ax, ay, az, bx, by, bz, r1, r2, mat) {
+    const dx = bx - ax, dy = by - ay, dz = bz - az;
+    const len = Math.hypot(dx, dy, dz) || 0.001;
+    const m = new T.Mesh(new T.CylinderGeometry(r2, r1, len, 6), mat);
+    m.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+    m.quaternion.setFromUnitVectors(_UP, _dir.set(dx / len, dy / len, dz / len));
+    m.castShadow = true;
+    return m;
+  }
+
+  /* ---------- canopy: a conical crown grown from a central LEADER. Every
+     branch springs from that spine; every foliage cluster is anchored to a
+     branch tip or the trunk top — so no bark or leaves float in the sky. ---- */
   function canopy(opts) {
     const g = new T.Group();
     const tex = needleTexture();
     const top = opts.trunkH;
+    const topR = opts.topR;
     const spread = opts.baseR * 2.6;
-    const detail = opts.detail != null ? opts.detail : 1;   // 1 full · 0.5 mid · 0.28 far
-    // dark branch armature
-    const branchMat = new T.MeshStandardMaterial({ color: col('#3a2418'), roughness: 1 });
-    const branchN = Math.max(3, Math.round(7 * detail));
-    for (let i = 0; i < branchN; i++) {
-      const f = i / 9;
-      const y = top + f * opts.canopyH * 0.9;
-      const len = (1 - f) * spread * 0.7 + 1.5;
-      const ang = Math.random() * Math.PI * 2;
-      const br = new T.Mesh(new T.CylinderGeometry(0.12, 0.28, len, 5), branchMat);
-      br.position.set(Math.cos(ang) * len * 0.4, y, Math.sin(ang) * len * 0.4);
-      br.rotation.z = Math.PI / 2 - 0.5;
-      br.rotation.y = -ang;
-      br.castShadow = true;
-      g.add(br);
-    }
-    // ---- solid foliage MASSES: voluminous green crown, emissive so it reads
-    //      lush (not black silhouette) when backlit by the bright sky ----
-    const greens = ['#6f9c46', '#5c8a3e', '#7aa84f', '#52803a', '#4a7634'];
-    const massMat = () => new T.MeshStandardMaterial({
-      color: col(greens[(Math.random() * greens.length) | 0]),
-      emissive: col('#2c4a1c'), emissiveIntensity: 0.55,
+    const crownH = opts.canopyH;
+    const detail = opts.detail != null ? opts.detail : 1;   // 1 full · 0.5 mid · 0.26 far
+
+    const branchMat = new T.MeshStandardMaterial({ color: col('#4a3120'), roughness: 1 });
+
+    // central leader — the trunk's spine continues up through the crown so
+    // branches have a real origin (this is the "trunk fades, leaves take over")
+    const leaderTop = top + crownH * 0.98;
+    g.add(limb(0, top - 1, 0, 0, leaderTop, 0, topR * 0.9, 0.1, branchMat));
+
+    const shadeGreens = ['#4a7634', '#52803a', '#5c8a3e'];   // interior / shaded
+    const sunGreens = ['#7aa84f', '#8cba56', '#9ec45a'];     // crown / sunlit tips
+    const pickGreen = (lit) => (lit ? sunGreens : shadeGreens)[(Math.random() * 3) | 0];
+    const massMat = (lit) => new T.MeshStandardMaterial({
+      color: col(pickGreen(lit)),
+      emissive: col(lit ? '#3a5a22' : '#28401a'), emissiveIntensity: lit ? 0.5 : 0.6,
       roughness: 0.92, metalness: 0, flatShading: true,
     });
-    const massN = Math.max(6, Math.round(16 * detail));
-    for (let i = 0; i < massN; i++) {
-      // bias toward the crown (top), tapering inward as it rises → conical sequoia crown
-      const f = Math.pow(Math.random(), 0.5);                 // 0 base of canopy → 1 crown tip
-      const y = top + opts.canopyH * (0.05 + f * 0.95);
-      const ringR = (1 - f * 0.78) * spread * (0.45 + Math.random() * 0.7);
-      const ang = Math.random() * Math.PI * 2;
-      const r = (1 - f * 0.55) * (2.6 + Math.random() * 2.2) + 0.8;
-      const blob = new T.Mesh(new T.IcosahedronGeometry(r, 0), massMat());
-      blob.position.set(Math.cos(ang) * ringR, y, Math.sin(ang) * ringR);
-      blob.scale.y = 0.74 + Math.random() * 0.22;
-      blob.rotation.set(Math.random(), Math.random(), Math.random());
-      blob.castShadow = true;
-      g.add(blob);
+
+    // a foliage cluster welded to (cx,cy,cz): flattened blob masses + a feathery
+    // billboard frond. `rich` doubles the masses for the dense crown centre.
+    function leaves(cx, cy, cz, scale, lit, rich) {
+      const blobs = rich ? 2 : 1;
+      for (let k = 0; k < blobs; k++) {
+        const r = (2.0 + Math.random() * 1.9) * scale;
+        const b = new T.Mesh(new T.IcosahedronGeometry(r, 0), massMat(lit));
+        b.position.set(cx + (Math.random() - 0.5) * r, cy + (Math.random() - 0.5) * r * 0.7, cz + (Math.random() - 0.5) * r);
+        b.scale.y = 0.55 + Math.random() * 0.2;               // flatter → draping sprays
+        b.rotation.set(Math.random() * 0.4, Math.random() * Math.PI * 2, Math.random() * 0.4);
+        b.castShadow = true;
+        g.add(b);
+      }
+      if (detail > 0.4) {                                     // far trees skip the fringe
+        const size = (5.5 + Math.random() * 5) * scale;
+        const pl = new T.Mesh(
+          new T.PlaneGeometry(size, size * (0.6 + Math.random() * 0.3)),   // wider than tall = frond
+          new T.MeshStandardMaterial({
+            map: tex, transparent: true, alphaTest: 0.18, roughness: 1, side: T.DoubleSide,
+            depthWrite: false, emissive: col(lit ? '#496e26' : '#33501c'),
+            emissiveIntensity: lit ? 0.55 : 0.45, color: col(pickGreen(lit)),
+          })
+        );
+        pl.position.set(cx, cy + size * 0.08, cz);
+        pl.rotation.y = Math.random() * Math.PI;
+        pl.rotation.z = (Math.random() - 0.5) * 0.4;
+        g.add(pl);
+      }
     }
-    // ---- soft billboard fringe over the masses for fine needle detail ----
-    const fringeN = Math.round(18 * detail);   // far trees skip the fringe entirely
-    for (let i = 0; i < fringeN; i++) {
-      const f = Math.pow(Math.random(), 0.55);
-      const y = top + opts.canopyH * (0.1 + f * 0.92);
-      const ringR = (1 - f * 0.7) * spread * (0.5 + Math.random() * 0.7);
-      const ang = Math.random() * Math.PI * 2;
-      const size = 5 + Math.random() * 6;
-      const pl = new T.Mesh(
-        new T.PlaneGeometry(size, size),
-        new T.MeshStandardMaterial({
-          map: tex, transparent: true, alphaTest: 0.2,
-          roughness: 1, side: T.DoubleSide, depthWrite: false,
-          emissive: col('#37551f'), emissiveIntensity: 0.5,
-          color: col(greens[(Math.random() * greens.length) | 0]),
-        })
-      );
-      pl.position.set(Math.cos(ang) * ringR, y, Math.sin(ang) * ringR);
-      pl.rotation.y = Math.random() * Math.PI;
-      pl.rotation.z = (Math.random() - 0.5) * 0.5;
-      g.add(pl);
+
+    // foliage taking over where the bare trunk ends
+    leaves(0, top + 0.6, 0, 1.3, false, true);
+
+    // tiered whorls of branches around the leader → conical sequoia crown
+    const tiers = Math.max(3, Math.round(5 * detail));
+    const perTier = Math.max(2, Math.round(3 * detail));
+    for (let i = 0; i < tiers; i++) {
+      const tf = i / (tiers - 1 || 1);                        // 0 crown base → 1 spire
+      const yb = top + crownH * (0.06 + tf * 0.84);
+      const reach = (1 - tf * 0.7) * spread * (0.5 + Math.random() * 0.4) + 1.2;
+      const a0 = Math.random() * Math.PI * 2;
+      for (let j = 0; j < perTier; j++) {
+        const ang = a0 + (j / perTier) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+        const rise = reach * (0.3 + Math.random() * 0.35);    // branches angle upward
+        const tx = Math.cos(ang) * reach, ty = yb + rise, tz = Math.sin(ang) * reach;
+        g.add(limb(0, yb, 0, tx, ty, tz, 0.28, 0.07, branchMat));
+        leaves(tx, ty, tz, 1 - tf * 0.4, true);               // sunlit foliage at each tip
+      }
     }
+    // dense foliage cap over the crown spire
+    leaves(0, leaderTop - crownH * 0.06, 0, 1.0, true, true);
+
     return g;
   }
 

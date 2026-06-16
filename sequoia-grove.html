@@ -73,8 +73,8 @@
     <div class="intro-card">
       <div class="eyebrow">A Walkable KNOBE Journey · Knobe.org</div>
       <h1>The Grove Has<br />Been Waiting</h1>
-      <p class="lede l1">There is a grove of giant sequoias that has watched the world for two thousand years. It is curious about your work — what you are making, what you are carrying, what you hope survives.</p>
-      <p class="lede l2">Walk among the trees. At each one, the grove asks you something true, and gathers your answers into a single seed you carry out.</p>
+      <p class="lede l1">There is a grove of Giant Sequoias in the mountains of California that has been watching the world for two thousand years. It is enchanted — not in the fairy-tale sense, but in the older sense: something so alive, so deeply rooted, that it cannot help but pay attention.</p>
+      <p class="lede l2">The grove has things to share with you. But it is also curious about your life: what you are making, what you are carrying, what you hope survives. Spend about thirty minutes here. When you leave, you will carry a small seed: a digital record of your thinking, structured so any mind, human or machine, can grow with it. Walk among the trees — at each one, the grove asks you something true, and gathers your answers into the seed you carry out.</p>
       <div class="ask" id="name-ask">What should we call you?</div>
       <div class="name-wrap">
         <label for="name-input" class="sr-only">What should we call you?</label>
@@ -109,12 +109,18 @@
       <button type="button" class="tool" id="tool-seed" aria-label="Open your seed panel">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-3-7-7 0-5 7-11 7-11s7 6 7 11c0 4-3 7-7 7z"/><path d="M12 21v-9M9 14l3-2 3 2"/></svg>
       </button>
-      <button type="button" class="tool" id="tool-audio" aria-label="Toggle ambient sound">
-        <svg class="a-on" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14"/></svg>
-        <svg class="a-off" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M22 9l-6 6M16 9l6 6"/></svg>
-      </button>
-      <button type="button" class="tool" id="tool-echo" aria-label="Echolocation ping — reveal nearby trees and obstacles by sound">
-        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><path d="M8.5 8.5a5 5 0 000 7M15.5 8.5a5 5 0 010 7"/><path d="M6 6a9 9 0 000 12M18 6a9 9 0 010 12"/></svg>
+      <div class="tool-group">
+        <button type="button" class="tool" id="tool-music" aria-pressed="false" aria-label="Play guiding sound toward your next stop">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </button>
+        <label class="tool-volume" id="volume-wrap" hidden>
+          <span class="tool-volume-label">Guiding sound volume</span>
+          <input type="range" id="volume-slider" min="0" max="100" step="5" value="70"
+                 aria-label="Guiding sound volume">
+        </label>
+      </div>
+      <button type="button" class="tool" id="tool-night" aria-pressed="false" aria-label="Switch to night grove with fireflies">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
       </button>
       <button type="button" class="tool" id="tool-fs" aria-label="Toggle fullscreen">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
@@ -123,14 +129,12 @@
 
     <!-- movement hint -->
     <div class="hud-hint" id="hud-hint">
-      <div class="desktop-only"><b>W A S D</b> walk &nbsp;·&nbsp; <b>drag</b> to look</div>
+      <div class="desktop-only"><b>W A S D</b> walk &nbsp;·&nbsp; <b>drag</b> or <b>arrow keys</b> to look</div>
       <div class="desktop-only" style="margin-top:6px"><b>click</b> ground to walk there &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Q</b> gaze up</div>
-      <div class="desktop-only" style="margin-top:6px"><b>I</b> &nbsp;or click&nbsp; to reflect at a glowing tree &nbsp;·&nbsp; <b>Enter</b> throw a rock</div>
-      <div class="desktop-only" style="margin-top:6px"><b>F</b> &nbsp;or the&nbsp; <b>sonar button</b> &nbsp;to echo-locate what's nearby</div>
+      <div class="desktop-only" style="margin-top:6px">walk up the <b>Mother of the Forest</b> stump to explore its living layers</div>
       <div class="touch-only"><b>joystick</b> to walk &nbsp;·&nbsp; <b>drag</b> to look</div>
       <div class="touch-only" style="margin-top:6px"><b>tap</b> ground to walk there &nbsp;·&nbsp; <b>two fingers</b> to look up</div>
-      <div class="touch-only" style="margin-top:6px"><b>tap</b> a glowing tree to reflect &nbsp;·&nbsp; <b>double-tap</b> to throw a stone</div>
-      <div class="touch-only" style="margin-top:6px">tap the <b>sonar button</b> to echo-locate what's nearby</div>
+      <div class="touch-only" style="margin-top:6px">walk up the <b>Mother of the Forest</b> stump to explore its living layers</div>
       <div style="margin-top:6px">follow the <b>golden footpath</b> to your next stop</div>
       <button type="button" class="dismiss" id="hint-dismiss">dismiss</button>
     </div>
@@ -151,7 +155,7 @@
       <div class="sub" id="task-sub">subtitle</div>
       <button type="button" class="task-close" id="task-close" aria-label="Close (Esc)">✕</button>
     </div>
-    <div class="task-body" id="task-body"></div>
+    <div class="task-body" id="task-body" tabindex="0"></div>
     <div class="task-foot">
       <span class="saved" id="task-saved" role="status" aria-live="polite">✓ saved to your seed</span>
       <button class="btn ghost" id="task-walkon">Walk on →</button>
@@ -175,12 +179,12 @@
 
   <!-- ====================== SCRIPTS ====================== -->
   <script src="grove/grove-data.js"></script>
-  <script src="grove/grove-audio.js"></script>
   <script src="grove/sequoia.js"></script>
   <script src="grove/grove-env.js"></script>
   <script src="grove/grove-player.js"></script>
   <script src="grove/grove-stations.js"></script>
   <script src="grove/grove-knobe.js"></script>
+  <script src="grove/grove-spatial.js"></script>
   <script src="grove/grove-ui.js"></script>
   <script>
   (function () {
@@ -251,7 +255,6 @@
       intro.classList.add('gone');
       setTimeout(function () { intro.remove(); }, 1000);
       window.GROVE.player.freeze(false);
-      try { window.GROVE.ui.startAudio(); } catch (e) {}
       window.GROVE.ui.toast('Walk toward the leaning gateway — the Threshold awaits, ' + name + '.');
       // The movement hint stays until the visitor dismisses it (SC 2.2.1).
     }
