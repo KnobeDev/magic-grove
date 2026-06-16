@@ -62,17 +62,17 @@
     const isNext = ni >= 0 && window.GROVE.STATIONS[ni] === station;
     const stateClass = done ? 'is-done' : (isNext ? 'is-next' : 'is-upcoming');
     p.className = 'prompt ' + stateClass;
+    const verb = done ? 'revisit' : (station.isSeed ? 'gather your seed' : (station.questions.length ? 'read &amp; respond' : 'read on'));
     p.innerHTML =
-      `<div class="p-badge">${station.num}</div>` +
+      `<div class="p-badge">${escapeHtml(station.num)}</div>` +
       `<div class="p-main">` +
-        `<div class="p-layer">${station.layer}${isNext && !done ? ' &middot; <b>your next stop</b>' : ''}</div>` +
-        `<div class="p-title">${station.title}</div>` +
-        `<div class="p-cta">Press <span class="p-key" id="prompt-open">I</span> or click to ` +
-        `${done ? 'revisit' : (station.isSeed ? 'gather your seed' : (station.questions.length ? 'read &amp; respond' : 'read on'))}</div>` +
+        `<div class="p-layer">${escapeHtml(station.layer)}${isNext && !done ? ' &middot; <b>your next stop</b>' : ''}</div>` +
+        `<div class="p-title">${escapeHtml(station.title)}</div>` +
+        `<div class="p-cta">Press <button type="button" class="p-key" id="prompt-open" aria-label="Open this station">I</button> or click to ${verb}</div>` +
         (done ? `<div class="p-done">✓ recorded</div>` : '') +
       `</div>`;
     p.classList.add('show');
-    $('prompt-open').onclick = () => U.openTask(station);
+    $('prompt-open').onclick = (e) => { e.stopPropagation(); U.openTask(station); };
     p.onclick = (e) => { if (e.target.id !== 'prompt-open') U.openTask(station); };
   };
 
@@ -201,16 +201,28 @@
     const taskEl = $('task');
     taskEl.classList.add('show');
     taskEl.setAttribute('aria-hidden', 'false');
+    taskEl.removeAttribute('inert');
+    announceTask(station.layer + ': ' + station.title + '. ' + (station.subtitle || ''));
     $('scrim').classList.add('show');
     const firstEmpty = [...body.querySelectorAll('textarea')].find(t => !t.value);
     const focusTarget = firstEmpty || $('task-close');
     if (focusTarget) setTimeout(() => focusTarget.focus(), 520);
   };
 
+  /* Announce the panel's heading into the SR live region (#task-live).
+     Cleared first so re-opening the same station re-announces. */
+  function announceTask(msg) {
+    const live = $('task-live'); if (!live) return;
+    live.textContent = '';
+    setTimeout(() => { live.textContent = msg; }, 60);
+  }
+
   U.closeTask = function () {
     const taskEl = $('task');
     taskEl.classList.remove('show');
     taskEl.setAttribute('aria-hidden', 'true');
+    taskEl.setAttribute('inert', '');
+    const live = $('task-live'); if (live) live.textContent = '';
     $('scrim').classList.remove('show');
     window.GROVE.player.freeze(false);
     if (window.GROVE.stations) window.GROVE.stations.refresh();
@@ -235,10 +247,10 @@
       `<div class="p-main">` +
         `<div class="p-layer">Trailside exhibit</div>` +
         `<div class="p-title">A fallen giant</div>` +
-        `<div class="p-cta">Press <span class="p-key" id="prompt-open">I</span> or click to read its cross-section</div>` +
+        `<div class="p-cta">Press <button type="button" class="p-key" id="prompt-open" aria-label="Open this exhibit">I</button> or click to read its cross-section</div>` +
       `</div>`;
     p.classList.add('show');
-    $('prompt-open').onclick = () => U.openExhibit(ex);
+    $('prompt-open').onclick = (e) => { e.stopPropagation(); U.openExhibit(ex); };
     p.onclick = (e) => { if (e.target.id !== 'prompt-open') U.openExhibit(ex); };
   };
 
@@ -359,6 +371,8 @@
     const taskEl = $('task');
     taskEl.classList.add('show');
     taskEl.setAttribute('aria-hidden', 'false');
+    taskEl.removeAttribute('inert');
+    announceTask('Trailside exhibit: Giant Sequoia Trunk Cross-Section.');
     $('scrim').classList.add('show');
     setTimeout(() => { const b = body.querySelector('.seg-btn') || $('task-close'); if (b) b.focus(); }, 520);
   };
@@ -373,10 +387,13 @@
   /* ---------------- sidebar ---------------- */
   U.toggleSidebar = function (force) {
     const sb = $('sidebar');
-    const open = force != null ? force : !sb.classList.contains('open');
+    const wasOpen = sb.classList.contains('open');
+    const open = force != null ? force : !wasOpen;
     sb.classList.toggle('open', open);
     const tgl = $('seed-toggle');
     if (tgl) tgl.setAttribute('aria-expanded', open ? 'true' : 'false');
+    // On close, return focus to the trigger so keyboard users aren't stranded.
+    if (wasOpen && !open && tgl && tgl.focus) { try { tgl.focus(); } catch (e) {} }
   };
 
   /* ---------------- toast ---------------- */
@@ -536,7 +553,9 @@
     const btn = $('tool-music'); if (!btn) return;
     btn.classList.toggle('on', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.setAttribute('aria-label', on ? 'Stop the guiding sound' : 'Play the guiding sound toward your next stop');
+    const label = on ? 'Stop the guiding sound' : 'Play the guiding sound toward your next stop';
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('title', label);   // keep hover tooltip in sync with accessible name
     // reveal the volume slider only while the sound is on
     const wrap = $('volume-wrap');
     if (wrap) wrap.hidden = !on;
@@ -551,7 +570,9 @@
     if (btn) {
       btn.classList.toggle('on', on);
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      btn.setAttribute('aria-label', on ? 'Hide the path to your next stop' : 'Show the path to your next stop');
+      const label = on ? 'Hide the path to your next stop' : 'Show the path to your next stop';
+      btn.setAttribute('aria-label', label);
+      btn.setAttribute('title', label);
     }
     const pill = $('path-toggle');
     if (pill) {
@@ -568,6 +589,21 @@
     initJoystick();
     $('task-close').onclick = U.closeTask;
     $('scrim').onclick = U.closeTask;
+
+    // Trap Tab focus inside the open task dialog (SC 2.1.2 / 2.4.3). It asserts
+    // aria-modal, so keyboard focus must not leak to the HUD behind the scrim
+    // (matches the achievement + sapwood dialogs, which both trap).
+    $('task').addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab') return;
+      const taskEl = $('task');
+      if (!taskEl.classList.contains('show')) return;
+      const f = taskEl.querySelectorAll('a[href], button:not([disabled]), textarea, input, [tabindex]:not([tabindex="-1"])');
+      const vis = [...f].filter(el => el.offsetParent !== null);
+      if (!vis.length) return;
+      const first = vis[0], last = vis[vis.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
     $('seed-toggle').onclick = () => U.toggleSidebar();
     $('sb-close').onclick = () => U.toggleSidebar(false);
     $('tool-fs').onclick = () => {
@@ -585,7 +621,9 @@
       if (window.GROVE.setNight) window.GROVE.setNight(on);
       nightBtn.classList.toggle('on', on);
       nightBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      nightBtn.setAttribute('aria-label', on ? 'Switch to daytime grove' : 'Switch to night grove with fireflies');
+      const label = on ? 'Switch to daytime grove' : 'Switch to night grove with fireflies';
+      nightBtn.setAttribute('aria-label', label);
+      nightBtn.setAttribute('title', label);
       U.toast(on ? 'Night falls — fireflies wake among the trees' : 'Daylight returns to the grove');
     };
 

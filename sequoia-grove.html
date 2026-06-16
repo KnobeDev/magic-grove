@@ -77,7 +77,6 @@
       <p class="lede l2">The grove has things to share with you. But it is also curious about your life: what you are making, what you are carrying, what you hope survives. Spend about thirty minutes here. When you leave, you will carry a small seed: a digital record of your thinking, structured so any mind, human or machine, can grow with it. Walk among the trees — at each one, the grove asks you something true, and gathers your answers into the seed you carry out.</p>
       <div class="ask" id="name-ask">What should we call you?</div>
       <div class="name-wrap">
-        <label for="name-input" class="sr-only">What should we call you?</label>
         <input type="text" id="name-input" maxlength="60" autocomplete="off" aria-labelledby="name-ask" placeholder="A name to carry into the grove" />
         <button class="btn" id="enter-btn" disabled>Enter the Grove →</button>
       </div>
@@ -100,17 +99,17 @@
 
     <!-- tools -->
     <nav class="hud-tools" aria-label="Grove tools">
-      <a class="tool" id="tool-home" href="index.html" aria-label="Switch view — back to entrance">
+      <a class="tool" id="tool-home" href="index.html" aria-label="Switch view — back to entrance" title="Switch view — back to entrance">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
       </a>
-      <button type="button" class="tool" id="tool-path" aria-label="Show the path to your next stop">
+      <button type="button" class="tool" id="tool-path" aria-label="Show the path to your next stop" title="Show the path to your next stop">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20s-5-1-5-5 4-4 7-4 6-1 6-4-4-4-4-4"/><circle cx="7" cy="20" r="1.4" fill="currentColor" stroke="none"/><circle cx="13" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="17" cy="5" r="1.2" fill="currentColor" stroke="none"/></svg>
       </button>
-      <button type="button" class="tool" id="tool-seed" aria-label="Open your seed panel">
+      <button type="button" class="tool" id="tool-seed" aria-label="Open your seed panel" title="Open your seed panel">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-3-7-7 0-5 7-11 7-11s7 6 7 11c0 4-3 7-7 7z"/><path d="M12 21v-9M9 14l3-2 3 2"/></svg>
       </button>
       <div class="tool-group">
-        <button type="button" class="tool" id="tool-music" aria-pressed="false" aria-label="Play guiding sound toward your next stop">
+        <button type="button" class="tool" id="tool-music" aria-pressed="false" aria-label="Play guiding sound toward your next stop" title="Play guiding sound toward your next stop">
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
         </button>
         <label class="tool-volume" id="volume-wrap" hidden>
@@ -119,10 +118,10 @@
                  aria-label="Guiding sound volume">
         </label>
       </div>
-      <button type="button" class="tool" id="tool-night" aria-pressed="false" aria-label="Switch to night grove with fireflies">
+      <button type="button" class="tool" id="tool-night" aria-pressed="false" aria-label="Switch to night grove with fireflies" title="Switch to night grove with fireflies">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
       </button>
-      <button type="button" class="tool" id="tool-fs" aria-label="Toggle fullscreen">
+      <button type="button" class="tool" id="tool-fs" aria-label="Toggle fullscreen" title="Toggle fullscreen">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
       </button>
     </nav>
@@ -147,8 +146,11 @@
   </div>
 
   <!-- ====================== TASK PANEL ====================== -->
+  <!-- SR live region kept OUTSIDE the dialog so it is never inside an
+       aria-hidden / inert subtree (announcements would otherwise be dropped). -->
+  <p id="task-live" class="sr-only" role="status" aria-live="polite"></p>
   <div id="scrim"></div>
-  <aside id="task" role="dialog" aria-modal="true" aria-labelledby="task-title" aria-hidden="true">
+  <aside id="task" role="dialog" aria-modal="true" aria-labelledby="task-title" aria-hidden="true" inert>
     <div class="task-head">
       <div class="layer" id="task-layer">Layer</div>
       <h2 id="task-title">Station</h2>
@@ -172,7 +174,7 @@
   </aside>
 
   <!-- ====================== TOUCH JOYSTICK ====================== -->
-  <div id="joy"><i></i></div>
+  <div id="joy" aria-hidden="true"><i></i></div>
 
   <!-- ====================== TOAST ====================== -->
   <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>

@@ -11,6 +11,17 @@
   --leaf-deep: #4a6a34;
   --gold: #d9b25a;
 
+  /* Interactive-area buttons (HUD tools + path pill): a bright yellow fill so
+     controls stand out from the 3D scene, with a near-black glyph/text for
+     accessible contrast (>=4.5:1 — verified ~11:1 on yellow, ~6.9:1 on green). */
+  --btn-yellow: #f2c84b;
+  --btn-yellow-hi: #ffd766;
+  --btn-yellow-edge: #8a6a14;
+  --btn-ink: #201700;
+  --btn-on: #7fae5a;
+  --btn-on-hi: #93c06d;
+  --btn-on-edge: #2f4a1d;
+
   --ink: #f3ead4;
   --ink-soft: #cdbf98;
   --ink-mute: #a89f82;
@@ -114,8 +125,15 @@ a-scene, .a-canvas { position: fixed; inset: 0; }
 
 /* Reset for <button> elements used as icon/close controls so they keep
    the prior visual appearance after the semantic upgrade from <div>/<span>. */
-button.tool, button.task-close, button.dismiss, button.sb-close {
+button.task-close, button.dismiss, button.sb-close {
   font: inherit; color: inherit; background: inherit; text-align: inherit;
+  -webkit-appearance: none; appearance: none;
+}
+/* HUD tools carry their own yellow fill (see .tool). Strip native chrome only —
+   do NOT reset color/background here, or the more specific button.tool selector
+   would override the yellow .tool fill. */
+button.tool {
+  font: inherit; text-align: inherit;
   -webkit-appearance: none; appearance: none;
 }
 
@@ -150,15 +168,25 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 .hud-tools { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 10px; }
 .tool {
   width: 44px; height: 44px; display: grid; place-items: center; cursor: pointer;
-  background: rgba(16,22,12,0.9); border: 1px solid var(--panel-edge);
-  border-radius: 10px; color: var(--ink-soft); transition: all 0.2s;
+  background: var(--btn-yellow); border: 1px solid var(--btn-yellow-edge);
+  border-radius: 10px; color: var(--btn-ink); transition: all 0.2s;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.45);
 }
-.tool:hover { border-color: var(--sapwood); color: var(--sapwood-glow); }
+.tool:hover { background: var(--btn-yellow-hi); border-color: var(--btn-ink); color: var(--btn-ink); }
 .tool svg { width: 20px; height: 20px; }
-.tool.on { color: var(--leaf); border-color: var(--leaf); }
+/* Toggled-on state turns green so it reads as clearly distinct from the
+   default yellow; the dark glyph keeps an accessible contrast ratio. */
+.tool.on { background: var(--btn-on); border-color: var(--btn-on-edge); color: var(--btn-ink); }
+.tool.on:hover { background: var(--btn-on-hi); border-color: var(--btn-ink); }
 a.tool { text-decoration: none; }
-#tool-home { background: rgba(20,16,10,0.92); border-color: rgba(217,178,90,0.45); color: var(--sapwood); }
-#tool-home:hover { color: var(--sapwood-glow); border-color: var(--sapwood-glow); }
+#tool-home { background: var(--btn-yellow); border-color: var(--btn-yellow-edge); color: var(--btn-ink); }
+#tool-home:hover { background: var(--btn-yellow-hi); color: var(--btn-ink); border-color: var(--btn-ink); }
+/* Keyboard focus must remain visible on the yellow/green fill: a dark ring
+   hugging the button plus an outer light halo against the 3D scene (SC 2.4.7). */
+.tool:focus-visible, .path-toggle:focus-visible {
+  outline: 3px solid var(--btn-ink); outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--sapwood-glow);
+}
 
 /* guiding-sound volume — a small flyout to the left of the music button,
    shown only while the sound is on (hearing differs; visitor sets the level) */
@@ -208,28 +236,34 @@ a.tool { text-decoration: none; }
 #prompt .p-layer b { color: var(--sapwood-glow); font-weight: 600; }
 #prompt .p-title { font-family: var(--font-display); font-size: 20px; color: var(--ink); margin: 3px 0 6px; }
 #prompt .p-cta { font-size: 14px; color: var(--ink-soft); }
+/* The "press I" affordance is a real <button>; reset native chrome and give
+   it the yellow chip treatment so it stands out and stays keyboard-operable. */
 #prompt .p-key {
-  font-family: var(--font-mono); font-size: 12px; color: var(--sapwood-glow);
-  border: 1px solid var(--sapwood); border-radius: 6px; padding: 2px 9px; margin: 0 3px;
-  cursor: pointer; display: inline-block;
+  font-family: var(--font-mono); font-size: 12px; color: var(--btn-ink);
+  background: var(--btn-yellow); border: 1px solid var(--btn-yellow-edge);
+  border-radius: 6px; padding: 2px 9px; margin: 0 3px;
+  cursor: pointer; display: inline-block; -webkit-appearance: none; appearance: none;
+  font-weight: 600;
 }
-#prompt .p-key:hover { background: rgba(217,178,90,0.2); }
+#prompt .p-key:hover { background: var(--btn-yellow-hi); }
+#prompt .p-key:focus-visible { outline: 3px solid var(--btn-ink); outline-offset: 2px; box-shadow: 0 0 0 5px var(--sapwood-glow); }
 #prompt .p-done { color: var(--leaf); font-size: 13px; margin-top: 4px; }
 
-#tool-path.on { color: var(--sapwood-glow); border-color: var(--sapwood); box-shadow: 0 0 10px rgba(217,178,90,0.35); }
+#tool-path.on { box-shadow: 0 0 10px rgba(127,174,90,0.45); }
 
-/* on-screen footpath toggle pill */
+/* on-screen footpath toggle pill — yellow so it stands out from the scene */
 .path-toggle {
   position: absolute; top: 62px; left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 8px;
-  background: rgba(16,22,12,0.9); border: 1px solid var(--panel-edge);
-  border-radius: 999px; padding: 7px 15px; cursor: pointer; color: var(--ink-soft);
+  background: var(--btn-yellow); border: 1px solid var(--btn-yellow-edge);
+  border-radius: 999px; padding: 7px 15px; cursor: pointer; color: var(--btn-ink);
   font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; transition: all 0.2s;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.45);
 }
-.path-toggle:hover { border-color: var(--sapwood); color: var(--sapwood-glow); }
-.path-toggle .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-mute); transition: all 0.2s; }
-.path-toggle.on { border-color: var(--sapwood); color: var(--sapwood-glow); }
-.path-toggle.on .dot { background: var(--sapwood); box-shadow: 0 0 8px var(--sapwood); }
+.path-toggle:hover { background: var(--btn-yellow-hi); border-color: var(--btn-ink); color: var(--btn-ink); }
+.path-toggle .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--btn-ink); opacity: 0.4; transition: all 0.2s; }
+.path-toggle.on { background: var(--btn-on); border-color: var(--btn-on-edge); color: var(--btn-ink); }
+.path-toggle.on .dot { background: var(--btn-ink); opacity: 1; box-shadow: 0 0 6px rgba(32,23,0,0.5); }
 .path-toggle b { font-weight: 600; color: inherit; }
 @media (max-width: 600px) { .path-toggle { top: 58px; font-size: 10px; padding: 6px 12px; } }
 
