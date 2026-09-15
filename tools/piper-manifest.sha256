@@ -1,0 +1,7 @@
+185b0861a6cd6cbdfb057289338090436483cc59e10a7bc83bd167b15531a51b  ./onnx/ort-wasm-simd-threaded.jsep.wasm
+207d02be4591c156b0a98f024f3d58005b5b04c92274d759fb390338c63559ea  ./onnx/ort-wasm-simd-threaded.wasm
+c35588fad691ed023215f0194e0fb0e816b9a9766d3d2669dd49d4ea2fffd712  ./piper-tts-web.js
+a9879123581336fc36ae3706ae81c9e67becc388b80b8a4943cef2a78542e6aa  ./piper/piper_phonemize.data
+2189e43490744c95445e251c38a47063f2ca266bcc30bbb18f692c47ff2bfd23  ./piper/piper_phonemize.wasm
+a5a91abb7de0f104358a25aded480ddacf1ff0762886325886ec406a2e86aab3  ./voices/en/en_US/amy/low/en_US-amy-low.onnx
+2250a9a605b8dc35a116717fadc5056695dd809e34a15d02f72a0f52d53d3ebb  ./voices/en/en_US/amy/low/en_US-amy-low.onnx.json

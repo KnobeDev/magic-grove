@@ -5,3 +5,7 @@ Thumbs.db
 
 # Internal design-process notes (not for publication)
 _design-reference/
+
+# Piper neural voice runtime (~160 MB) — vendored by tools/fetch-piper.sh, never committed
+grove/lib/piper/
+grove/lib/.piper-*

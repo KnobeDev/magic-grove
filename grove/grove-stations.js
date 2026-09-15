@@ -135,8 +135,8 @@
     // the tunnel tree's medallion drops into the open archway mouth (low, and
     // pushed south past the trunk face) so it reads clearly instead of hiding
     // up at the lintel behind the resuming upper trunk.
-    const sprBaseY = isTunnel ? 4.2 : onStump ? 4.2 : (trunkR > 4 ? 5.6 : 4.6);
-    const sprZ = isTunnel ? trunkR + 3.5 : trunkR + 1.5;
+    const sprBaseY = isTunnel ? 11 : onStump ? 4.2 : (trunkR > 4 ? 5.6 : 4.6);   // tunnel: above the arch, on the trunk face
+    const sprZ = isTunnel ? trunkR + 2.5 : trunkR + 1.5;
     // glowing rune ring on the ground, just outside the prop
     _ringTex = _ringTex || ringTex();
     const ringR = trunkR + 3.0;
@@ -219,6 +219,15 @@
   }
   S.nextIndex = nextIndex;
 
+  /* Stops must be taken in order: anything past the next incomplete stop is
+     locked until that stop is completed. Returns the gating station, or null. */
+  S.lockedBy = function (station) {
+    const ni = nextIndex();
+    if (ni < 0) return null;
+    const idx = window.GROVE.STATIONS.indexOf(station);
+    return idx > ni ? window.GROVE.STATIONS[ni] : null;
+  };
+
   S.refresh = function () {
     // completing The Parting opens the way back to the Seed
     const parting = window.GROVE.STATIONS.find(st => st.returnsTo);
@@ -239,6 +248,7 @@
       if (s7 && isComplete(s7)) window.GROVE.revealRoots();
     }
     if (window.GROVE.ui) window.GROVE.ui.updateProgress();
+    _near = null;   // completion changed: re-evaluate the prompt where the visitor stands (locks lift in place)
   };
 
   /* ---------- proximity (stations + fallen-log exhibits) ---------- */
@@ -258,20 +268,27 @@
       const d = Math.hypot(pos.x - e.x, pos.z - e.z);
       if (d < C.proximity + 2 && d < bestD) { best = e; bestD = d; kind = 'exhibit'; }
     }
+    // the seed trophy at the entrance (only once the seed has been taken)
+    const F = window.GROVE.finale;
+    if (F && F.taken) {
+      const d = Math.hypot(pos.x - F.pos.x, pos.z - F.pos.z);
+      if (d < C.proximity + 2 && d < bestD) { best = F; bestD = d; kind = 'trophy'; }
+    }
     if (best !== _near) {
       // notify ONLY when stepping into the active element — the station the
-      // wayfinding currently leads to (next incomplete). Props you pass before
-      // it is their turn stay quiet; exhibits aren't part of the guided sequence.
-      if (best && kind === 'station' &&
-          window.GROVE.STATIONS.indexOf(best) === nextIndex() &&
-          window.GROVE.spatial && window.GROVE.spatial.notify) {
-        window.GROVE.spatial.notify();
-      }
+      // wayfinding currently leads to (next incomplete), or the trophy once it
+      // holds the seed. Props you pass before it is their turn stay quiet;
+      // exhibits aren't part of the guided sequence.
+      const isActive = best && (
+        (kind === 'station' && window.GROVE.STATIONS.indexOf(best) === nextIndex()) ||
+        (kind === 'trophy' && !F.visited));
+      if (isActive && window.GROVE.spatial && window.GROVE.spatial.notify) window.GROVE.spatial.notify();
       _near = best;
       S.active = best;
       S.activeKind = kind;
       if (window.GROVE.ui) {
         if (kind === 'exhibit') window.GROVE.ui.showExhibitPrompt(best);
+        else if (kind === 'trophy') F.showPrompt();
         else window.GROVE.ui.showPrompt(best);         // station or null → hides
       }
     }
@@ -280,57 +297,96 @@
   S.openActive = function () {
     if (!S.active || !window.GROVE.ui) return;
     if (S.activeKind === 'exhibit') window.GROVE.ui.openExhibit(S.active);
+    else if (S.activeKind === 'trophy') window.GROVE.finale.open();
     else window.GROVE.ui.openTask(S.active);
   };
+
+  /* Where the wayfinding (footpath + guiding sound) leads right now: the next
+     incomplete station, else the seed trophy until it has been visited. */
+  function guideTarget() {
+    const F = window.GROVE.finale;
+    if (F && F.taken && !F.visited) return { x: F.pos.x, z: F.pos.z, reach: 3.4, key: 'trophy' };
+    const ni = nextIndex();
+    if (ni >= 0) {
+      const st = window.GROVE.STATIONS[ni];
+      return { x: st.pos.x, z: st.pos.z, reach: trunkRadius(st) + 3.5, key: 's' + ni };
+    }
+    return null;
+  }
+  S.guideTarget = guideTarget;
   S.getActive = function () { return S.active; };
 
   /* =================================================================
-     GUIDING FOOTPATH — a flowing trail of glowing footprints from the
+     GUIDING FOOTPATH — a spaced trail of glowing footprints from the
      visitor to the next incomplete station. Toggle with GROVE.stations
      .togglePath(). Hidden while a task panel is open.
      ================================================================= */
-  const PATH = { group: null, prints: [], visible: true, route: null, routeKey: '' };
-  const ROUTE_CLEAR = 1.6;   // keep footfalls this far outside any blocker edge
+  const PATH = { group: null, ribbon: null, tex: null, visible: true, route: null, routeKey: '', geomKey: '' };
+  const pathMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  const ROUTE_CLEAR = 1.6;   // keep the ribbon this far outside any blocker edge
+  const RIBBON_W = 0.9;      // ribbon width (u)
+  const RIBBON_STEP = 0.5;   // sample spacing along the route (u)
+  const CHEVRON_PERIOD = 1.6; // one chevron every this many units of trail
 
-  function footstepTex() {
-    const Sz = 128, cv = document.createElement('canvas'); cv.width = cv.height = Sz;
+  /* one chevron, tip toward +v (the direction of travel), on a soft glowing band */
+  function chevronTex() {
+    const W = 64, H = 128, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
     const g = cv.getContext('2d');
-    g.clearRect(0, 0, Sz, Sz);
-    // glowing footprint pointing UP (toward -v / top of canvas = travel direction)
-    const paint = (cxp, cyp, rx, ry) => {
-      const grd = g.createRadialGradient(cxp, cyp, 1, cxp, cyp, Math.max(rx, ry));
-      grd.addColorStop(0, 'rgba(255,246,210,0.95)');
-      grd.addColorStop(0.55, 'rgba(255,212,110,0.7)');
-      grd.addColorStop(1, 'rgba(255,200,90,0)');
-      g.fillStyle = grd;
-      g.beginPath(); g.ellipse(cxp, cyp, rx, ry, 0, 0, 7); g.fill();
-    };
-    paint(Sz * 0.5, Sz * 0.40, 22, 30);   // ball of the foot (forward)
-    paint(Sz * 0.5, Sz * 0.74, 15, 18);   // heel (back)
-    // toe dots
-    for (let i = -1; i <= 1; i++) paint(Sz * 0.5 + i * 13, Sz * 0.16, 5, 6);
-    const tex = new T.CanvasTexture(cv); tex.colorSpace = T.SRGBColorSpace;
+    g.clearRect(0, 0, W, H);
+    // faint band down the middle so the ribbon reads as one continuous trail
+    const band = g.createLinearGradient(0, 0, W, 0);
+    band.addColorStop(0, 'rgba(255,214,120,0)');
+    band.addColorStop(0.5, 'rgba(255,214,120,0.28)');
+    band.addColorStop(1, 'rgba(255,214,120,0)');
+    g.fillStyle = band; g.fillRect(0, 0, W, H);
+    // the chevron (canvas top = v 1 = toward the stop)
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    g.shadowColor = 'rgba(255,230,160,0.9)'; g.shadowBlur = 10;
+    g.strokeStyle = 'rgba(255,246,214,0.98)'; g.lineWidth = 9;
+    g.beginPath(); g.moveTo(12, 84); g.lineTo(32, 44); g.lineTo(52, 84); g.stroke();
+    const tex = new T.CanvasTexture(cv);
+    tex.colorSpace = T.SRGBColorSpace;
+    tex.wrapS = T.ClampToEdgeWrapping; tex.wrapT = T.RepeatWrapping;
     return tex;
   }
 
   function buildPath(root) {
     PATH.group = new T.Group();
-    const tex = footstepTex();
-    const N = 20;
-    for (let i = 0; i < N; i++) {
-      const m = new T.Mesh(new T.PlaneGeometry(1.0, 1.5),
-        new T.MeshBasicMaterial({
-          map: tex, transparent: true, depthWrite: false, blending: T.AdditiveBlending,
-          opacity: 0, color: col('#ffdf8a'), fog: true,
-        }));
-      m.rotation.set(-Math.PI / 2, 0, 0);
-      m.position.y = 0.12; m.visible = false; m.renderOrder = 3;
-      PATH.group.add(m); PATH.prints.push(m);
-    }
+    PATH.tex = chevronTex();
+    PATH.ribbon = new T.Mesh(new T.BufferGeometry(), new T.MeshBasicMaterial({
+      map: PATH.tex, transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+      color: col('#ffdf8a'), opacity: 0.9, side: T.DoubleSide, fog: true,
+    }));
+    PATH.ribbon.renderOrder = 3; PATH.ribbon.visible = false; PATH.ribbon.frustumCulled = false;
+    PATH.group.add(PATH.ribbon);
     root.add(PATH.group);
   }
 
-  function hidePath() { for (const p of PATH.prints) p.visible = false; }
+  /* lay the ribbon along the route from `start` to `end` (arc lengths): a strip
+     of quads hugging the terrain, v running with the arc so chevrons tile evenly */
+  function layRibbon(route, start, end) {
+    const n = Math.max(2, Math.ceil((end - start) / RIBBON_STEP) + 1);
+    const pos = new Float32Array(n * 2 * 3), uv = new Float32Array(n * 2 * 2);
+    const idx = [];
+    for (let i = 0; i < n; i++) {
+      const arc = Math.min(end, start + i * RIBBON_STEP);
+      const s = sampleRoute(route, arc);
+      const px = -s.hz, pz = s.hx;                 // unit perpendicular (left)
+      const hw = RIBBON_W / 2 * Math.min(1, (arc - start) / 1.5, (end - arc) / 2 + 0.35);  // taper the ends
+      const lx = s.x + px * hw, lz = s.z + pz * hw, rx = s.x - px * hw, rz = s.z - pz * hw;
+      pos.set([lx, terrainAt(lx, lz) + 0.1, lz, rx, terrainAt(rx, rz) + 0.1, rz], i * 6);
+      const v = arc / CHEVRON_PERIOD;
+      uv.set([0, v, 1, v], i * 4);
+      if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); }
+    }
+    const geo = new T.BufferGeometry();
+    geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new T.BufferAttribute(uv, 2));
+    geo.setIndex(idx);
+    const old = PATH.ribbon.geometry; PATH.ribbon.geometry = geo; if (old) old.dispose();
+  }
+
+  function hidePath() { if (PATH.ribbon) PATH.ribbon.visible = false; }
 
   /* ---- obstacle-aware wayfinding route ----
      The footpath used to be a straight line from the visitor to the next stop,
@@ -397,46 +453,34 @@
   }
 
   function updatePath(tt) {
-    if (!PATH.group) return;
+    if (!PATH.ribbon) return;
     const player = window.GROVE.player;
-    const ni = nextIndex();
+    const tg = guideTarget();
     const taskEl = document.getElementById('task');
     const taskOpen = taskEl && taskEl.classList.contains('show');
-    if (!PATH.visible || ni < 0 || !player || taskOpen) { hidePath(); return; }
+    if (!PATH.visible || !tg || !player || taskOpen) { hidePath(); return; }
 
-    const st = window.GROVE.STATIONS[ni];
-    const ax = player.pos.x, az = player.pos.z, bx = st.pos.x, bz = st.pos.z;
-    const reach = trunkRadius(st) + 3.5;
+    const ax = player.pos.x, az = player.pos.z, bx = tg.x, bz = tg.z;
+    const reach = tg.reach;
 
     // recompute the avoiding route only when something material changed
     const blkN = (window.GROVE.blockers || []).length;
-    const key = ni + ':' + Math.round(ax / 2) + ':' + Math.round(az / 2) + ':' + blkN;
+    const key = tg.key + ':' + Math.round(ax / 2) + ':' + Math.round(az / 2) + ':' + blkN;
     if (key !== PATH.routeKey || !PATH.route) {
       PATH.route = buildRoute(ax, az, bx, bz, reach);
       PATH.routeKey = key;
     }
     const route = PATH.route;
-    const start = 2.4, end = route.len - reach;
-    const span = end - start;
-    if (span < 1.5) { hidePath(); return; }       // already there
+    const start = 1.6, end = route.len - reach;
+    if (end - start < 1.5) { hidePath(); return; }       // already there
 
-    const N = PATH.prints.length;
-    const flow = (tt * 0.85) % 1;
-    for (let i = 0; i < N; i++) {
-      const f = (i + flow) / N;                    // 0 (near visitor) → 1 (near prop)
-      const s = sampleRoute(route, start + f * span);
-      const side = (i % 2 ? 1 : -1) * 0.36;        // alternate left / right footfalls
-      const px = s.x - s.hz * side;
-      const pz = s.z + s.hx * side;
-      const heading = Math.atan2(s.hx, s.hz);
-      const p = PATH.prints[i];
-      p.visible = true;
-      p.position.set(px, terrainAt(px, pz) + 0.12, pz);   // follow the stump ramp
-      p.rotation.set(-Math.PI / 2, 0, heading);
-      const fade = Math.min(1, f / 0.10, (1 - f) / 0.14);
-      const pulse = 0.55 + 0.45 * Math.sin(tt * 3 - i * 0.6);
-      p.material.opacity = Math.max(0, fade) * pulse * 0.9;
-    }
+    // re-lay the strip only when the route (or the walker's fine position) moved
+    const gk = key + ':' + Math.round(ax * 4) + ':' + Math.round(az * 4);
+    if (gk !== PATH.geomKey) { layRibbon(route, start, end); PATH.geomKey = gk; }
+    PATH.ribbon.visible = true;
+    // chevrons flow toward the stop; a held pattern under reduced motion
+    PATH.tex.offset.y = (pathMotion && pathMotion.matches) ? 0 : -((tt * 0.9) % 1);
+    PATH.ribbon.material.opacity = 0.85;
   }
 
   S.togglePath = function (force) {
@@ -472,8 +516,8 @@
     // HRTF panning + distance pull the visitor toward it. null when none
     // remain. Only audible once the visitor turned the sound on.
     if (window.GROVE.spatial) {
-      const next = ni >= 0 ? window.GROVE.STATIONS[ni] : null;
-      window.GROVE.spatial.setTarget(next ? next.pos : null);
+      const tg = guideTarget();
+      window.GROVE.spatial.setTarget(tg ? { x: tg.x, z: tg.z } : null);
     }
   };
 

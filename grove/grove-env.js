@@ -23,6 +23,9 @@
   window.GROVE.fireflies = null;       // night-mode glowing drifters (Points)
   window.GROVE.isNight = false;
   window.GROVE.logExhibits = [];       // {x,z,glow,labels[],lines[],ph} cross-section easter eggs
+  window.GROVE.swayTrees = [];         // near trees whose crowns sway when you look up
+  window.GROVE.needleFall = null;      // drifting needles seen only while gazing up
+  window.GROVE.sunGlint = null;        // sun flare through the crowns while gazing up
 
   const mat = (hex, o = {}) => new T.MeshStandardMaterial(
     Object.assign({ color: col(hex), roughness: 0.95, metalness: 0 }, o));
@@ -298,43 +301,47 @@
     return g;
   }
 
-  /* ---------- a walk-through arch cut through a sequoia base ----------
-     The famous "tunnel tree": the trunk stands on two legs with an arched
-     opening between them so the trail passes straight through. Built as a
-     single extruded archway silhouette (no CSG) — the upper trunk is raised
-     to rest on top of it. The shared bark texture is cloned ONCE here (a
-     single clone is cheap — the GPU-OOM hazard was cloning per background
-     tree, not one hero prop) so the legs read as real bark, not flat paint. */
-  function tunnelBase(x, z, halfW, Hb, archW, archH, depth) {
-    const aw = archW / 2;
-    const s = new T.Shape();
-    s.moveTo(-halfW, 0);
-    s.lineTo(-halfW, Hb);                       // up the left leg + lintel
-    s.lineTo(halfW, Hb);                        // across the top
-    s.lineTo(halfW, 0);                         // down the right leg outer
-    s.lineTo(aw, 0);                            // in along the ground to the arch foot
-    s.lineTo(aw, archH - aw);                   // up the inner right of the arch
-    s.absarc(0, archH - aw, aw, 0, Math.PI, false);  // arch over to the inner left
-    s.lineTo(-aw, 0);                           // down the inner left to the ground
-    s.lineTo(-halfW, 0);                        // close along the ground
-    const geo = new T.ExtrudeGeometry(s, {
-      depth: depth, bevelEnabled: true, bevelThickness: 0.5, bevelSize: 0.5, bevelSegments: 2, steps: 1,
-    });
-    geo.translate(0, 0, -depth / 2);            // centre the tunnel on the trunk axis (runs along Z)
-    geo.computeVertexNormals();
-    // skin the legs + lintel with the same vertical bark as the trunks above.
-    // ExtrudeGeometry emits world-unit UVs, so a small repeat stretches one
-    // bark tile across several feet of leg instead of a tiny stamped grid.
+  /* ---------- the TUNNEL TREE: a giant's round, buttressed base with an arched
+     passage bored straight through it (north–south), the way the California
+     Tunnel Tree was cut. Built without CSG: two curved bark walls leave the two
+     openings, a full ring closes the trunk above the arch, and a bark-lined
+     passage (walls + ceiling) runs through the middle. Returns the group and the
+     passage half-width so the caller can place blockers. ---------- */
+  function tunnelTrunk(x, z, R, H, archH, halfGap) {
+    const g = new T.Group();
     const bark = window.GROVE.barkTexture().map.clone();
-    bark.needsUpdate = true;
-    bark.wrapS = bark.wrapT = T.RepeatWrapping;
-    bark.repeat.set(0.16, 0.16);
-    const m = new T.Mesh(geo, new T.MeshStandardMaterial({
-      map: bark, color: col('#8a5a3a'), roughness: 0.97, side: T.DoubleSide,
-    }));
-    m.castShadow = true; m.receiveShadow = true;
-    m.position.set(x, -0.4, z);                 // sink the feet slightly so the legs meet the ground
-    return m;
+    bark.needsUpdate = true; bark.wrapS = bark.wrapT = T.RepeatWrapping; bark.repeat.set(7, 2);
+    const barkMat = new T.MeshStandardMaterial({ map: bark, color: col('#9a6a48'), roughness: 0.97, side: T.DoubleSide });
+    const inner = new T.MeshStandardMaterial({ map: bark, color: col('#4a2c1c'), roughness: 1, side: T.DoubleSide });
+    const gap = 2 * Math.asin(halfGap / R);                   // opening angle, centred on ±Z
+    // lower walls: buttressed (wider at the foot), two sweeps that leave the openings
+    [gap / 2, Math.PI + gap / 2].forEach(t0 => {
+      const w = new T.Mesh(new T.CylinderGeometry(R, R * 1.16, archH, 48, 1, true, t0, Math.PI - gap), barkMat);
+      w.position.y = archH / 2; w.castShadow = true; w.receiveShadow = true; g.add(w);
+    });
+    // the ring above the arch, then a cap the upper trunk sits on
+    const ring = new T.Mesh(new T.CylinderGeometry(R * 0.94, R, H - archH, 48, 1, true), barkMat);
+    ring.position.y = archH + (H - archH) / 2; ring.castShadow = true; g.add(ring);
+    const cap = new T.Mesh(new T.CircleGeometry(R * 0.94, 48), mat('#5a3a26'));
+    cap.rotation.x = -Math.PI / 2; cap.position.y = H; g.add(cap);
+    // the passage: bark-lined walls and ceiling running the full depth
+    const L = R * 2.4;
+    [-1, 1].forEach(sd => {
+      const wall = new T.Mesh(new T.BoxGeometry(0.5, archH, L), inner);
+      wall.position.set(sd * (halfGap + 0.25), archH / 2, 0); wall.receiveShadow = true; g.add(wall);
+    });
+    const ceil = new T.Mesh(new T.BoxGeometry(halfGap * 2 + 1, 0.6, L), inner);
+    ceil.position.y = archH - 0.3; g.add(ceil);
+    // rounded lintels over each mouth
+    [-1, 1].forEach(sd => {
+      const lintel = new T.Mesh(new T.CylinderGeometry(halfGap + 0.6, halfGap + 0.6, 1.2, 24, 1, false, 0, Math.PI), barkMat);
+      lintel.rotation.z = Math.PI / 2; lintel.rotation.y = sd > 0 ? 0 : Math.PI;
+      lintel.position.set(0, archH - 0.2, sd * (R * 1.08)); g.add(lintel);
+    });
+    // a soft light inside so the passage is not a black hole
+    const lamp = new T.PointLight(col('#ffd9a0'), 1.6, 18, 2); lamp.position.set(0, archH * 0.6, 0); g.add(lamp);
+    g.position.set(x, 0, z);
+    return g;
   }
 
   /* ---------- the walkable Mother-of-the-Forest stump ---------- */
@@ -358,6 +365,7 @@
       mat('#7a5436', { roughness: 1 }));
     rim.rotation.x = Math.PI / 2; rim.position.y = ST.top; g.add(rim);
     g.position.set(ST.x, 0, ST.z); root.add(g);
+    window.GROVE.stumpGroup = g;                 // grove-mother.js adds the ring reader here
     // ground contact shadow at the base
     root.add(groundBlob(ST.x, ST.z, (ST.r + ST.edge) * 2.2));
     // NOTE: deliberately NOT a blocker — the stump is walkable.
@@ -529,6 +537,7 @@
     top.position.y = 0.7; g.add(top);
     const cone = new T.Mesh(new T.SphereGeometry(0.5, 12, 12), mat('#7a5a32', { flatShading: true }));
     cone.scale.set(0.7, 1.1, 0.7); cone.position.y = 1.25; cone.castShadow = true; g.add(cone);
+    g.userData.cone = cone;                         // hidden once the seed is taken
     const glow = new T.PointLight(col('#ffd87a'), 6, 16, 2);
     glow.position.y = 1.6; g.add(glow); g.userData.glow = glow;
     g.position.set(s.pos.x, 0, s.pos.z);
@@ -542,6 +551,134 @@
       blockers.push({ x: s.pos.x, z: s.pos.z, r: 2.9 });
       root.add(groundBlob(s.pos.x, s.pos.z, 9));
     };
+  }
+
+  /* ---------- the seed trophy (appears at the entrance once the seed is taken) ----
+     A stone pedestal, a gold cup with two handles, and a glass dome in which the
+     visitor's seed — a single flat sequoia seed — turns slowly in warm light. */
+  function buildTrophy(root) {
+    const P = C.trophy;
+    const g = new T.Group();
+    const stone = mat('#7b7266', { flatShading: true, roughness: 1 });
+    const gold = new T.MeshStandardMaterial({ color: col('#e2b64a'), metalness: 0.85, roughness: 0.32 });
+    const ped = new T.Mesh(new T.CylinderGeometry(0.9, 1.1, 1.0, 20), stone);
+    ped.position.y = 0.5; ped.castShadow = true; ped.receiveShadow = true; g.add(ped);
+    const slab = new T.Mesh(new T.CylinderGeometry(1.0, 0.95, 0.12, 20), mat('#8b8276'));
+    slab.position.y = 1.06; g.add(slab);
+    const foot = new T.Mesh(new T.CylinderGeometry(0.42, 0.5, 0.1, 20), gold);
+    foot.position.y = 1.17; foot.castShadow = true; g.add(foot);
+    const stem = new T.Mesh(new T.CylinderGeometry(0.08, 0.14, 0.55, 12), gold);
+    stem.position.y = 1.5; g.add(stem);
+    const bowl = new T.Mesh(new T.LatheGeometry([
+      new T.Vector2(0.08, 0), new T.Vector2(0.3, 0.1), new T.Vector2(0.42, 0.3),
+      new T.Vector2(0.45, 0.46), new T.Vector2(0.43, 0.52), new T.Vector2(0.4, 0.52),
+      new T.Vector2(0.38, 0.14), new T.Vector2(0.1, 0.03),
+    ], 28), gold);
+    bowl.position.y = 1.76; bowl.castShadow = true; g.add(bowl);
+    [-1, 1].forEach(s => {
+      const h = new T.Mesh(new T.TorusGeometry(0.2, 0.035, 8, 18, Math.PI), gold);
+      h.position.set(s * 0.5, 2.02, 0); h.rotation.z = s * Math.PI / 2 + Math.PI / 2; g.add(h);
+    });
+    const dome = new T.Mesh(new T.SphereGeometry(0.4, 24, 16),
+      new T.MeshStandardMaterial({ color: col('#dff0ff'), transparent: true, opacity: 0.22,
+        roughness: 0.05, metalness: 0.1, side: T.DoubleSide, depthWrite: false }));
+    dome.position.y = 2.36; dome.renderOrder = 5; g.add(dome);
+    // the seed: a flat winged flake, gold-brown, faintly lit from within
+    const seed = new T.Mesh(new T.SphereGeometry(0.12, 12, 8),
+      new T.MeshStandardMaterial({ color: col('#b8873f'), emissive: col('#5a3a10'), emissiveIntensity: 0.6, roughness: 0.7 }));
+    seed.scale.set(1.5, 0.28, 0.8); seed.position.y = 2.36; g.add(seed); g.userData.seed = seed;
+    const glow = new T.PointLight(col('#ffd87a'), 5, 12, 2);
+    glow.position.y = 2.5; g.add(glow); g.userData.glow = glow;
+    const label = labelSprite('YOUR SEED', '#ffe6a8');
+    label.material.opacity = 1; label.position.y = 3.25; g.add(label);
+    g.position.set(P.x, 0, P.z);
+    g.visible = false;
+    root.add(g);
+    window.GROVE.trophyProp = g;
+    window.GROVE.revealTrophy = function () {
+      if (g.visible) return;
+      g.visible = true;
+      blockers.push({ x: P.x, z: P.z, r: 1.5 });
+      root.add(groundBlob(P.x, P.z, 6));
+      const altar = window.GROVE.seedAltar;
+      if (altar && altar.userData.cone) altar.userData.cone.visible = false;   // the seed left the altar
+    };
+  }
+
+  /* ---------- look-up effects: falling needles + a sun glint through the crowns.
+     Both sit at zero opacity until the visitor gazes up (GROVE.player.gazeUp). */
+  function buildNeedleFall(root) {
+    const N = 140, geo = new T.BufferGeometry();
+    const pos = new Float32Array(N * 3), base = new Float32Array(N * 3), ph = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      base[i * 3] = (Math.random() - 0.5) * 36;
+      base[i * 3 + 1] = 4 + Math.random() * 40;
+      base[i * 3 + 2] = (Math.random() - 0.5) * 36;
+      ph[i] = Math.random() * 40;
+    }
+    geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+    const m = new T.Points(geo, new T.PointsMaterial({
+      map: fireflyTex(), color: col('#b9a25a'), size: 0.55, transparent: true, opacity: 0,
+      depthWrite: false, fog: true, sizeAttenuation: true,
+    }));
+    m.userData = { base, ph };
+    m.visible = false;
+    window.GROVE.needleFall = m;
+    root.add(m);
+  }
+  let _birdTex = null;
+  function birdTex() {
+    if (_birdTex) return _birdTex;
+    const W = 128, H = 64, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const g = cv.getContext('2d');
+    g.clearRect(0, 0, W, H);
+    // a soaring silhouette: two swept wings meeting at a small body
+    g.fillStyle = '#1a1710';
+    g.beginPath();
+    g.moveTo(64, 40);
+    g.quadraticCurveTo(40, 14, 4, 26);  g.quadraticCurveTo(38, 30, 60, 46);
+    g.quadraticCurveTo(70, 50, 68, 46); g.quadraticCurveTo(90, 30, 124, 26);
+    g.quadraticCurveTo(88, 14, 64, 40);
+    g.closePath(); g.fill();
+    _birdTex = new T.CanvasTexture(cv); _birdTex.colorSpace = T.SRGBColorSpace;
+    return _birdTex;
+  }
+  function buildBirds(root) {
+    // Flat silhouettes lying in the sky (seen from below), each flying a straight
+    // line across the visitor's view above the crowns and re-entering from a new
+    // edge when it has crossed. Planes, not sprites: a sprite always faces the
+    // camera, so looking straight up made every bird look like it was diving.
+    const flock = new T.Group();
+    const N = 7;
+    for (let i = 0; i < N; i++) {
+      const m = new T.Mesh(new T.PlaneGeometry(1, 0.5),
+        new T.MeshBasicMaterial({ map: birdTex(), transparent: true, opacity: 0, depthWrite: false, side: T.DoubleSide, fog: true }));
+      m.userData = { s: 12 + Math.random() * 5, h: 175 + Math.random() * 30, ph: Math.random() * 6,
+        speed: 9 + Math.random() * 6, x: 0, z: 0, hx: 1, hz: 0, born: -1 };
+      flock.add(m);
+    }
+    flock.visible = false;
+    window.GROVE.birds = flock;
+    root.add(flock);
+  }
+  // send a bird in from the edge of the sky window on a fresh straight heading
+  function launchBird(u, i) {
+    const R = 70;                              // radius of the sky window over the walker
+    const ang = Math.random() * Math.PI * 2;   // entry point on the rim
+    u.x = Math.cos(ang) * R; u.z = Math.sin(ang) * R;
+    const aim = ang + Math.PI + (Math.random() - 0.5) * 0.9;   // roughly across, not a chord along the rim
+    u.hx = Math.cos(aim); u.hz = Math.sin(aim);
+    u.t0 = performance.now() / 1000 - (i ? Math.random() * 12 : 0);   // stagger the first crossings
+  }
+
+  function buildSunGlint(scene) {
+    const spr = new T.Sprite(new T.SpriteMaterial({
+      map: fireflyTex(), color: col('#fff3c4'), transparent: true, opacity: 0,
+      depthTest: false, depthWrite: false, fog: false, blending: T.AdditiveBlending,
+    }));
+    spr.scale.set(30, 30, 1); spr.renderOrder = 8; spr.visible = false;
+    window.GROVE.sunGlint = spr;
+    scene.add(spr);
   }
 
   /* ---------- god-ray shaft ---------- */
@@ -675,23 +812,26 @@
             root.add(makeSign(s.pos.x, s.pos.z, -0.6, 'plaque'));
             placed.push({ x: s.pos.x, z: s.pos.z, r: 3 }); break;
           case 'barktree': {
-            // a walk-through "tunnel tree" — the trail passes through the base,
-            // with the Section 04 medallion floating in the archway.
-            const halfW = 5.2, Hb = 9, archW = 5.4, archH = 6.6, depth = 11;
-            const y0 = Hb - 2;                       // upper trunk resumes just above the arch
-            const t = window.GROVE.makeSequoia({ baseR: 4.4, topR: 1.8, trunkH: 60, canopyH: 30, scale: 1.15 });
-            t.position.set(s.pos.x, y0, s.pos.z); root.add(t);
-            root.add(tunnelBase(s.pos.x, s.pos.z, halfW, Hb, archW, archH, depth));
-            // a dark fire scar on the south face of one leg
-            const scar = new T.Mesh(new T.CircleGeometry(1.1, 16),
-              mat('#241208', { roughness: 1 }));
-            scar.position.set(s.pos.x - 3.5, 3.4, s.pos.z + depth / 2 + 0.12); scar.scale.set(0.7, 2.0, 1); root.add(scar);
-            root.add(groundBlob(s.pos.x, s.pos.z, 20));
-            // two legs flank the tunnel; the middle stays open so you can walk through
-            blockers.push({ x: s.pos.x - 3.95, z: s.pos.z, r: 2.2 });
-            blockers.push({ x: s.pos.x + 3.95, z: s.pos.z, r: 2.2 });
-            placed.push({ x: s.pos.x, z: s.pos.z, r: 5 });
-            s._trunkR = 4.6; break;
+            // Stop 4: a giant you walk THROUGH. Round buttressed base ~17 u across
+            // with a 6 u wide, 9 u high passage; the upper trunk rises from its cap.
+            const R = 8.5, H = 14, archH = 9, halfGap = 3.0;
+            const t = window.GROVE.makeSequoia({ baseR: R * 0.61, topR: 1.9, trunkH: 96, canopyH: 52, scale: 1.15 });
+            t.position.set(s.pos.x, H - 1.5, s.pos.z); root.add(t);
+            window.GROVE.swayTrees.push(t);
+            root.add(tunnelTrunk(s.pos.x, s.pos.z, R, H, archH, halfGap));
+            // a dark fire scar on the south-west face
+            const scar = new T.Mesh(new T.CircleGeometry(1.4, 16), mat('#241208', { roughness: 1 }));
+            const sa = -0.7;
+            scar.position.set(s.pos.x + Math.sin(sa) * R * 1.1, 3.6, s.pos.z + Math.cos(sa) * R * 1.1);
+            scar.rotation.y = sa; scar.scale.set(0.7, 2.2, 1); root.add(scar);
+            root.add(groundBlob(s.pos.x, s.pos.z, 30));
+            // collision: the passage walls (a chain of circles each side) + the round wall
+            for (let k = -2; k <= 2; k++) [-1, 1].forEach(sd =>
+              blockers.push({ x: s.pos.x + sd * (halfGap + 2.2), z: s.pos.z + k * 3.4, r: 2.2 }));
+            for (let a = 0.78; a < Math.PI - 0.7; a += 0.42) [-1, 1].forEach(sd =>
+              blockers.push({ x: s.pos.x + sd * Math.sin(a) * (R - 0.6), z: s.pos.z + Math.cos(a) * (R - 0.6), r: 2.4 }));
+            placed.push({ x: s.pos.x, z: s.pos.z, r: 9 });
+            s._trunkR = R; break;
           }
           case 'cone':
             buildCone(root);
@@ -700,6 +840,28 @@
           // drawn by grove-stations.js (roots glow is built below).
           default: break;
         }
+      });
+
+      // ---- hero trees crowding the visitor's center: three around Stop 1 (the
+      //      Threshold, west) and three around Stop 2 (the Visitor Plaque, east),
+      //      set just outside the signs so the walk between them stays open ----
+      [
+        [-22, 84, 1.15], [-25, 66, 1.05], [-10, 94, 1.2],     // Stop 1 · Threshold  (-12, 70)
+        [ 22, 84, 1.15], [ 25, 66, 1.05], [ 10, 94, 1.2],     // Stop 2 · Visitor Plaque (12, 64)
+        // a second, deeper row behind each cluster so the edge reads as forest, not a fence
+        // (every trunk keeps 15-20 u from its neighbours, the spacing of real giants)
+        [-38, 90, 1.1], [-40, 72, 1.0], [-30, 104, 1.15], [-36, 54, 1.05],   // behind Stop 1
+        [ 38, 90, 1.1], [ 40, 72, 1.0], [ 30, 104, 1.15], [ 36, 54, 1.05],   // behind Stop 2
+      ].forEach(([x, z, sc]) => {
+        const t = window.GROVE.makeSequoia({
+          baseR: 3.2 + Math.random() * 0.8, topR: 1.3, trunkH: 86 + Math.random() * 20,
+          canopyH: 42 + Math.random() * 12, scale: sc, detail: 1,
+        });
+        t.position.set(x, 0, z); root.add(t);
+        root.add(groundBlob(x, z, 15));
+        blockers.push({ x, z, r: 3.4 });
+        placed.push({ x, z, r: 3.4 });
+        window.GROVE.swayTrees.push(t);
       });
 
       // ---- background grove: dense forest around the clearings + path ----
@@ -722,12 +884,13 @@
           for (const p of placed) { if (Math.hypot(p.x - x, p.z - z) < spec.gap + (p.r || 0)) { ok = false; break; } }
           if (!ok) continue;
           const t = window.GROVE.makeSequoia({
-            baseR: 2.5 + Math.random() * 1.5, topR: 1.1, trunkH: 46 + Math.random() * 22,
-            canopyH: 22 + Math.random() * 12, scale: spec.sMin + Math.random() * spec.sVar,
+            baseR: 2.5 + Math.random() * 1.5, topR: 1.1, trunkH: 74 + Math.random() * 34,
+            canopyH: 36 + Math.random() * 18, scale: spec.sMin + Math.random() * spec.sVar,
             detail: spec.detail,
           });
           t.position.set(x, 0, z); root.add(t);
           if (rad < 86) { root.add(groundBlob(x, z, 14)); blockers.push({ x, z, r: 3.2 }); }
+          if (rad < 132) window.GROVE.swayTrees.push(t);     // near + middle rings breathe in the wind
           placed.push({ x, z, r: 3.2 });
           made++;
         }
@@ -776,6 +939,10 @@
       rayspots.forEach(([x, z, w, h, tilt, ry]) => root.add(godRay(x, z, w, h, tilt, ry)));
       buildMotes(root);
       buildFireflies(root);
+      buildNeedleFall(root);
+      buildBirds(root);
+      buildSunGlint(sceneEl.object3D);
+      buildTrophy(root);
 
       // ---- lights ----
       this.hemi = new T.HemisphereLight(col('#cfe6f2'), col('#5a4e2a'), 0.85); root.add(this.hemi);
@@ -852,6 +1019,85 @@
       }
     },
 
+    /* BIRDS: a small flock wheeling high over the crowns, seen only while the
+       visitor looks up. Each bird is a sprite of a flapping silhouette, circling
+       its own centre at its own pace; the flock drifts with the walker. */
+    tickBirds(tt, gz) {
+      const flock = window.GROVE.birds; if (!flock) return;
+      const player = window.GROVE.player;
+      const show = !!player && gz > 0.04;
+      flock.visible = show;
+      if (!show) return;
+      flock.position.set(player.pos.x, 0, player.pos.z);
+      const slow = this._reduce ? 0.4 : 1;
+      const now = performance.now() / 1000;
+      flock.children.forEach((b, i) => {
+        const u = b.userData;
+        if (u.born < 0) { launchBird(u, i); u.born = now; }
+        const flown = (now - u.t0) * u.speed * slow;
+        const x = u.x + u.hx * flown, z = u.z + u.hz * flown;
+        if (Math.hypot(x, z) > 78 && flown > 20) { launchBird(u, i); return; }
+        const bob = Math.sin(tt * 0.6 * slow + u.ph) * 1.2;
+        b.position.set(x, u.h + bob, z);
+        // lie flat in the sky with the body (plane local +Y) along the heading and
+        // the wingspan (local X) across it. Euler XYZ: Z turns the plane in its own
+        // face first, then X lays it flat, so local +Y lands on (−sinθ, 0, −cosθ).
+        b.rotation.set(-Math.PI / 2, 0, Math.atan2(-u.hx, -u.hz));
+        // wingbeat: the span pumps; a glide every few beats
+        const beat = Math.sin(tt * (5 + i * 0.4) * slow + u.ph);
+        const glide = Math.sin(tt * 0.3 + u.ph) > 0.65 ? 0.15 : 1;
+        b.scale.set(u.s * (0.6 + 0.4 * Math.abs(beat) * glide), u.s * 0.9, 1);
+        b.material.opacity = Math.min(1, (gz - 0.04) * 3) * 0.85;
+      });
+    },
+
+    /* the LOOK-UP moment: while the visitor gazes into the canopy (gazeUp 0→1)
+       the near crowns sway, a soft sun glint blooms through the needles, and a
+       drift of needles falls around the walker. Reduced-motion keeps the sway
+       to a breath and slows the fall. */
+    tickLookUp(tt) {
+      const player = window.GROVE.player;
+      const gz = player ? player.gazeUp : 0;
+      // WIND: a slow gust envelope rolls through the grove (each crown catches it a
+      // beat apart), with a fine tremor on top; looking up deepens the sway.
+      const gust = 0.5 + 0.5 * Math.sin(tt * 0.11) * Math.sin(tt * 0.043 + 1.3);
+      const amp = this._reduce ? 0.004 : 0.005 + gust * 0.012 + gz * 0.018;
+      for (const t of window.GROVE.swayTrees) {
+        const c = t.userData.canopy; if (!c) continue;
+        const ph = t.userData.ph, local = 0.7 + 0.3 * Math.sin(tt * 0.11 + ph * 0.6);
+        c.rotation.z = (Math.sin(tt * 0.45 + ph) + 0.25 * Math.sin(tt * 1.9 + ph * 2)) * amp * local;
+        c.rotation.x = (Math.cos(tt * 0.37 + ph) + 0.25 * Math.cos(tt * 2.3 + ph)) * amp * 0.7 * local;
+      }
+      this.tickBirds(tt, gz);
+      const nf = window.GROVE.needleFall, sg = window.GROVE.sunGlint;
+      const show = !!player && gz > 0.03;
+      if (nf) {
+        nf.visible = show;
+        if (show) {
+          nf.position.set(player.pos.x, 0, player.pos.z);
+          nf.material.opacity = gz * 0.85;
+          const a = nf.geometry.attributes.position, base = nf.userData.base, ph = nf.userData.ph;
+          const speed = this._reduce ? 0.6 : 2.2;
+          for (let i = 0; i < a.count; i++) {
+            const y = 44 - ((tt * speed + ph[i]) % 40);
+            a.setX(i, base[i * 3] + Math.sin(tt * 0.9 + ph[i]) * 1.2);
+            a.setY(i, y);
+            a.setZ(i, base[i * 3 + 2] + Math.cos(tt * 0.7 + ph[i]) * 1.2);
+          }
+          a.needsUpdate = true;
+        }
+      }
+      if (sg) {
+        sg.visible = show;
+        if (show) {
+          // toward the sun (-40, 80, 40), high over the walker
+          sg.position.set(player.pos.x - 28, 58, player.pos.z + 28);
+          const pulse = this._reduce ? 0.45 : 0.4 + 0.12 * Math.sin(tt * 0.8);
+          sg.material.opacity = gz * pulse * (this.night ? 0.3 : 1);
+        }
+      }
+    },
+
     tick(time) {
       const tt = time / 1000;
       window.GROVE.shafts.forEach(m => {
@@ -897,6 +1143,14 @@
       if (window.GROVE.coneProp && window.GROVE.coneProp.userData.glow) {
         window.GROVE.coneProp.userData.glow.intensity = 2.4 + Math.sin(tt * 1.6) * 1.0;
       }
+      const trophy = window.GROVE.trophyProp;
+      if (trophy && trophy.visible) {
+        const s = trophy.userData.seed;
+        s.rotation.y = this._reduce ? 0.6 : tt * 0.8;
+        s.position.y = 2.36 + (this._reduce ? 0 : Math.sin(tt * 1.4) * 0.05);
+        trophy.userData.glow.intensity = 4.2 + Math.sin(tt * 1.3) * 1.2;
+      }
+      this.tickLookUp(tt);
       // fallen-log cross-sections: rings glow + ring-band callouts fade in on approach (~10 ft)
       const player = window.GROVE.player;
       if (player) {

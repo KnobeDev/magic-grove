@@ -598,6 +598,110 @@ body.touch .desktop-only { display: none; }
   .task-head h2 { font-size: 24px; }
 }
 
+/* ---------------- WALKER CHOICE (entry screen) ---------------- */
+.walker-choice {
+  border: 0; padding: 0; margin: 26px auto 0;
+  display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+}
+.walker-choice legend {
+  width: 100%; font-family: var(--font-display); font-size: clamp(16px, 2.4vw, 20px);
+  color: var(--sapwood-glow); margin-bottom: 12px; font-weight: 500;
+}
+.walker-opt {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  width: 112px; padding: 12px 10px 10px; cursor: pointer;
+  background: var(--field-bg); border: 1px solid var(--panel-edge); border-radius: 12px;
+  color: var(--ink-soft); transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+.walker-opt:hover { border-color: var(--sapwood); color: var(--ink); }
+.walker-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.walker-opt:has(input:checked) { border-color: var(--sapwood); background: rgba(217,178,90,0.14); color: var(--ink); }
+.walker-opt:has(input:focus-visible) { outline: 2px solid var(--sapwood-glow); outline-offset: 3px; }
+.walker-figure svg { width: 30px; height: 60px; fill: currentColor; opacity: 0.85; }
+.walker-opt:has(input:checked) .walker-figure svg { fill: var(--sapwood-glow); opacity: 1; }
+.walker-name { font-family: var(--font-display); font-size: 14px; letter-spacing: 0.06em; }
+
+/* ---------------- LOOK-UP CANOPY NOTE ---------------- */
+.canopy-note {
+  position: absolute; top: 108px; left: 50%; transform: translateX(-50%) translateY(-8px);
+  width: min(460px, 90vw); padding: 14px 20px; text-align: center;
+  background: rgba(16,22,12,0.9); border: 1px solid var(--panel-edge); border-radius: 14px;
+  opacity: 0; transition: opacity 0.45s, transform 0.45s; pointer-events: none;
+}
+.canopy-note.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.canopy-note[hidden] { display: none; }
+.cn-sup { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--leaf); }
+.cn-title { font-family: var(--font-display); font-size: 19px; color: var(--sapwood-glow); margin: 4px 0 6px; }
+.cn-text { margin: 0; font-size: 15px; line-height: 1.55; color: var(--ink-soft); font-style: italic; }
+
+/* ---------------- THE MOTHER'S RING READER ---------------- */
+.ring-reader {
+  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+  width: min(270px, 70vw); padding: 14px 16px;
+  background: rgba(16,22,12,0.92); border: 1px solid rgba(217,178,90,0.45); border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+}
+.ring-reader[hidden] { display: none; }
+.rr-sup { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--gold); }
+.rr-band { font-family: var(--font-display); font-size: 20px; color: var(--sapwood-glow); margin-top: 6px; text-transform: capitalize; }
+.rr-year { font-family: var(--font-mono); font-size: 13px; color: var(--ink); margin-top: 4px; }
+.rr-event { margin-top: 10px; font-size: 13.5px; line-height: 1.5; color: var(--ink-soft); }
+.rr-event:empty { display: none; }
+.rr-event b { display: block; color: var(--leaf); font-family: var(--font-display); font-size: 14px; margin-bottom: 2px; }
+.rr-note { margin-top: 10px; font-size: 11.5px; color: var(--ink-mute); font-style: italic; line-height: 1.4; }
+body.touch .ring-reader { top: auto; bottom: 170px; transform: none; }
+
+/* ---------------- CAPTIONS (bottom of the screen) ----------------
+   Theme-independent on purpose, like broadcast captions: white on near-black
+   reads over sky, duff, bark and night alike (about 14:1). The bar itself never
+   blocks a click on the scene; only its Stop button takes the pointer. */
+.captions-bar {
+  position: fixed; left: 50%; bottom: 12px; z-index: 97;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px;
+  max-width: min(46rem, calc(100vw - 24px));
+  pointer-events: none; transition: opacity 220ms ease;
+}
+.captions-bar[hidden] { display: none; }
+.captions-bar.is-fading { opacity: 0; }
+.captions {
+  margin: 0; padding: 0.55rem 1rem; min-width: 0;
+  background: rgba(8, 12, 6, 0.92); color: #ffffff;
+  font-family: var(--font-body); font-size: 1.15rem; font-weight: 600; line-height: 1.4; text-align: center; overflow-wrap: anywhere;
+  border-radius: 0.6rem; box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+}
+.cap-stop {
+  pointer-events: auto; flex: 0 0 auto; min-width: 44px; min-height: 44px;
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; cursor: pointer;
+  background: var(--btn-yellow); border: 1px solid var(--btn-yellow-edge); color: var(--btn-ink);
+  border-radius: 8px; padding: 0 14px;
+}
+.cap-stop:hover { background: var(--btn-yellow-hi); }
+.cap-stop:focus-visible { outline: 3px solid var(--btn-ink); outline-offset: 2px; box-shadow: 0 0 0 5px var(--sapwood-glow); }
+/* while a caption shows, lift the prompt clear of it and drop the gaze hint */
+body.captions-showing #prompt { bottom: 96px; }
+body.captions-showing .gaze-pip { display: none; }
+/* short windows (a phone sideways, 400% zoom): a long caption scrolls, never runs off (SC 1.4.10) */
+@media (max-height: 560px) {
+  .captions-bar { left: 12px; right: 12px; transform: none; max-width: none; }
+  .captions { max-height: calc(100vh - 24px); overflow-y: auto; font-size: 1rem; pointer-events: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .captions-bar { transition: none; } }
+
+/* ---------------- READ-ALOUD + TROPHY PANEL ---------------- */
+.listen-row { margin: 0 0 14px; }
+.btn.listen { flex: 0 1 auto; min-width: 0; }
+#prompt.is-trophy { border-color: var(--sapwood-glow); box-shadow: 0 0 30px rgba(240,212,136,0.35); }
+.ach-take { display: block; width: 100%; margin: 4px 0 8px; }
+.ach-note { text-align: center; margin: 0; }
+.final-word { margin: 26px 0 6px; padding: 18px 20px; border-radius: 12px;
+  background: rgba(217,178,90,0.06); border: 1px solid rgba(217,178,90,0.3); }
+.fw-title { font-family: var(--font-display); font-size: 20px; color: var(--sapwood); margin: 0 0 6px; }
+.fw-text { margin-top: 12px; border-top: 1px dotted rgba(217,178,90,0.3); padding-top: 12px; }
+.fw-text p { font-size: 16px; line-height: 1.65; color: var(--ink-soft); margin: 0 0 12px; font-style: italic; }
+.fw-text p:first-child { color: var(--ink); font-style: normal; }
+.task-body .ach-hashwrap { text-align: left; }
+
 /* Respect reduced-motion: drop transitions/animations on UI chrome (SC 2.3.3). */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -607,3 +711,27 @@ body.touch .desktop-only { display: none; }
     scroll-behavior: auto !important;
   }
 }
+
+/* locked stop (must be taken in order): muted badge, no call to action */
+#prompt.is-locked { border-color: var(--panel-edge); }
+#prompt.is-locked .p-badge { background: radial-gradient(circle at 35% 30%, #4a4438, #24201a); color: var(--ink-mute); box-shadow: none; }
+#prompt.is-locked .p-layer b { color: var(--ink-mute); }
+#prompt.is-locked .p-cta b { color: var(--sapwood-glow); }
+
+/* controls hint folded into a controller button (bottom-left, where the hint sat) */
+.hint-toggle { position: absolute; bottom: 16px; left: 16px; }
+.hint-toggle[hidden] { display: none; }
+.hud-hint[hidden] { display: none; }
+body.touch .hint-toggle { display: none; }
+
+/* looking-up card: minimize to a chip */
+.canopy-note { pointer-events: none; }
+.canopy-note .cn-min {
+  pointer-events: auto; position: absolute; top: 6px; right: 6px; width: 32px; height: 32px;
+  border-radius: 8px; border: 1px solid var(--btn-yellow-edge); background: var(--btn-yellow); color: var(--btn-ink);
+  font-family: var(--font-mono); font-size: 16px; line-height: 1; cursor: pointer;
+}
+.canopy-note .cn-min:hover { background: var(--btn-yellow-hi); }
+.canopy-note .cn-min:focus-visible { outline: 3px solid var(--btn-ink); outline-offset: 2px; box-shadow: 0 0 0 5px var(--sapwood-glow); }
+.canopy-note.is-min { width: auto; padding: 10px 48px 10px 18px; }
+.canopy-note.is-min .cn-sup { margin: 0; line-height: 1.6; }

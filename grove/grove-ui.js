@@ -50,9 +50,18 @@
   };
 
   /* ---------------- proximity prompt ---------------- */
+  /* Read a proximity prompt aloud as it appears (voice on), queued behind any
+     passage already playing; hiding the prompt silences only its own reading. */
+  const PROMPT_LABEL = 'Nearby';
+  U.sayPrompt = function (text) {
+    const n = window.GROVE.narrator; if (!n) return;
+    if (!text) { n.stopIf(PROMPT_LABEL); return; }
+    n.speak(text, { label: PROMPT_LABEL, append: true });
+  };
+
   U.showPrompt = function (station) {
     const p = $('prompt');
-    if (!station) { p.classList.remove('show'); return; }
+    if (!station) { p.classList.remove('show'); U.sayPrompt(null); return; }
     if ($('task').classList.contains('show')) { p.classList.remove('show'); return; }
     const a = window.GROVE.knobe.answers;
     const done = window.GROVE.stations
@@ -60,6 +69,25 @@
       : station.questions.every(q => /Optional/i.test(q.label) || (a[q.field] || '').trim());
     const ni = window.GROVE.stations ? window.GROVE.stations.nextIndex() : -1;
     const isNext = ni >= 0 && window.GROVE.STATIONS[ni] === station;
+    const stopNo = parseInt(station.num, 10) || (window.GROVE.STATIONS.indexOf(station) + 1);
+    const total = window.GROVE.STATIONS.length;
+    // stops are taken in order: a stop ahead of the next one is locked
+    const gate = window.GROVE.stations && window.GROVE.stations.lockedBy(station);
+    if (gate) {
+      const gateNo = parseInt(gate.num, 10) || (window.GROVE.STATIONS.indexOf(gate) + 1);
+      p.className = 'prompt is-locked';
+      p.innerHTML =
+        `<div class="p-badge">${escapeHtml(station.num)}</div>` +
+        `<div class="p-main">` +
+          `<div class="p-layer">${escapeHtml(station.layer)} &middot; <b>locked</b></div>` +
+          `<div class="p-title">${escapeHtml(station.title)}</div>` +
+          `<div class="p-cta">This stop is disabled until Stop ${gateNo}, <b>${escapeHtml(gate.title)}</b>, has been completed.</div>` +
+        `</div>`;
+      p.classList.add('show');
+      p.onclick = () => U.toast('Complete Stop ' + gateNo + ' · ' + gate.title + ' first');
+      U.sayPrompt('Stop ' + stopNo + ' of ' + total + '. ' + station.title + '. This stop is disabled until Stop ' + gateNo + ', ' + gate.title + ', has been completed.');
+      return;
+    }
     const stateClass = done ? 'is-done' : (isNext ? 'is-next' : 'is-upcoming');
     p.className = 'prompt ' + stateClass;
     const verb = done ? 'revisit' : (station.isSeed ? 'gather your seed' : (station.questions.length ? 'read &amp; respond' : 'read on'));
@@ -74,13 +102,24 @@
     p.classList.add('show');
     $('prompt-open').onclick = (e) => { e.stopPropagation(); U.openTask(station); };
     p.onclick = (e) => { if (e.target.id !== 'prompt-open') U.openTask(station); };
+    const plainVerb = done ? 'revisit' : (station.isSeed ? 'gather your seed' : (station.questions.length ? 'read and respond' : 'read on'));
+    // spoken as "Stop 1 of 11", never the zero-padded "01" the sign shows
+    U.sayPrompt('Stop ' + stopNo + ' of ' + total + '. ' + station.layer + (isNext && !done ? ', your next stop' : '') + '. ' + station.title + '. ' +
+      (done ? 'Recorded. ' : '') + 'Press I or click to ' + plainVerb + '.');
   };
 
   /* ---------------- task panel ---------------- */
   U.openTask = function (station) {
     if (!station) return;
+    const gate = window.GROVE.stations && window.GROVE.stations.lockedBy(station);
+    if (gate) {   // in-order only: the I key / click on a locked stop just restates the gate
+      const gateNo = parseInt(gate.num, 10) || (window.GROVE.STATIONS.indexOf(gate) + 1);
+      U.toast('This stop is disabled until Stop ' + gateNo + ' · ' + gate.title + ' has been completed');
+      return;
+    }
     currentStation = station;
     $('prompt').classList.remove('show');
+    U.sayPrompt(null);                      // the visitor answered the prompt: stop reading it
     window.GROVE.player.freeze(true);
     if (window.GROVE.stations && window.GROVE.stations.markVisited) window.GROVE.stations.markVisited(station.id);
 
@@ -91,6 +130,14 @@
 
     const body = $('task-body');
     let html = '<div class="intro">' + station.intro.map(p => `<p>${escapeHtml(p)}</p>`).join('') + '</div>';
+
+    // spoken version of the station (captioned by the narrator box)
+    if (window.GROVE.narrator) {
+      html += `<div class="export-row listen-row"><button type="button" class="btn ghost listen" id="station-read"><span aria-hidden="true">▶</span> Read this aloud</button>` +
+        (station.region === 'stump' || station.id === 'mother'
+          ? `<button type="button" class="btn ghost listen" id="station-ring" hidden><span aria-hidden="true">▶</span> Read the ring under my feet</button>` : '') +
+        `</div>`;
+    }
 
     // contextual hosted imagery
     const img = STATION_IMG[station.id];
@@ -162,12 +209,15 @@
         `<p class="task-note">Or simply walk back down the path — your seed will be waiting where you began.</p>`;
     }
 
-    // The Seed — seal & finish
+    // The Seed — seal & finish (or, once taken, the way back to the trophy)
     if (station.isSeed) {
+      const taken = window.GROVE.finale && window.GROVE.finale.taken;
       html += `<div class="export-row">` +
-        `<button class="btn leaf" id="seed-seal">Seal my seed</button>` +
+        `<button class="btn leaf" id="seed-seal">${taken ? 'Return to your trophy' : 'Seal my seed'}</button>` +
         `</div>` +
-        `<p class="task-note">Sealing folds your record into a final SHA-256 fingerprint and unlocks your portable file.</p>`;
+        `<p class="task-note">${taken
+          ? 'Your seed has been taken. It rests in the trophy where you began.'
+          : 'Sealing folds your record into a final SHA-256 fingerprint, then carries you back to where you began, where your seed will be waiting.'}</p>`;
     }
 
     html += `<div class="grove-key"><b>Grove Key</b>${escapeHtml(station.key)}</div>`;
@@ -193,20 +243,42 @@
       U.toast('Back at the visitor’s center — your seed awaits');
     };
     const sealBtn = $('seed-seal');
-    if (sealBtn) sealBtn.onclick = () => U.sealSeed();
+    if (sealBtn) sealBtn.onclick = () => {
+      const F = window.GROVE.finale;
+      if (F && F.taken) { U.closeTask(); window.GROVE.player.teleport(window.GROVE.CONFIG.returnPos.x, window.GROVE.CONFIG.returnPos.z, Math.PI); }
+      else U.sealSeed();
+    };
     const sapStudy = $('sapwood-study-open');
     if (sapStudy && window.GROVE.sapwoodStudy) sapStudy.onclick = () => window.GROVE.sapwoodStudy.open();
+    const readBtn = $('station-read');
+    if (readBtn) readBtn.onclick = () => {
+      const parts = [station.title + '.'].concat(station.intro);
+      station.questions.forEach(q => parts.push(q.label + '. ' + q.text));
+      if (station.outro) parts.push.apply(parts, station.outro);
+      window.GROVE.narrator.speak(parts.join(' '), { label: station.num + ' · ' + station.title });
+    };
+    const ringBtn = $('station-ring');
+    if (ringBtn && window.GROVE.mother) {
+      ringBtn.hidden = !window.GROVE.mother.onStump;
+      ringBtn.onclick = () => window.GROVE.mother.readHere();
+    }
 
+    U.showPanel(station.layer + ': ' + station.title + '. ' + (station.subtitle || ''));
+    const firstEmpty = [...body.querySelectorAll('textarea')].find(t => !t.value);
+    const focusTarget = firstEmpty || $('task-close');
+    if (focusTarget) setTimeout(() => focusTarget.focus(), 520);
+  };
+
+  /* slide the #task panel in as a modal dialog and announce its heading;
+     shared by stations, the fallen-log exhibit, and the seed trophy */
+  U.showPanel = function (announce) {
     lastFocus = document.activeElement;
     const taskEl = $('task');
     taskEl.classList.add('show');
     taskEl.setAttribute('aria-hidden', 'false');
     taskEl.removeAttribute('inert');
-    announceTask(station.layer + ': ' + station.title + '. ' + (station.subtitle || ''));
+    announceTask(announce);
     $('scrim').classList.add('show');
-    const firstEmpty = [...body.querySelectorAll('textarea')].find(t => !t.value);
-    const focusTarget = firstEmpty || $('task-close');
-    if (focusTarget) setTimeout(() => focusTarget.focus(), 520);
   };
 
   /* Announce the panel's heading into the SR live region (#task-live).
@@ -252,6 +324,7 @@
     p.classList.add('show');
     $('prompt-open').onclick = (e) => { e.stopPropagation(); U.openExhibit(ex); };
     p.onclick = (e) => { if (e.target.id !== 'prompt-open') U.openExhibit(ex); };
+    U.sayPrompt('Trailside exhibit. A fallen giant. Press I or click to read its cross-section.');
   };
 
   // a leader-lined SVG callout diagram (rings or document) shared shape
@@ -359,6 +432,7 @@
   }
   U.openExhibit = function (ex) {
     $('prompt').classList.remove('show');
+    U.sayPrompt(null);
     window.GROVE.player.freeze(true);
     $('task-layer').textContent = 'Trailside exhibit · easter egg';
     $('task-title').textContent = 'Giant Sequoia Trunk Cross-Section';
@@ -367,13 +441,7 @@
     body.innerHTML = exhibitHTML();
     body.scrollTop = 0;
     wireExhibit(body);
-    lastFocus = document.activeElement;
-    const taskEl = $('task');
-    taskEl.classList.add('show');
-    taskEl.setAttribute('aria-hidden', 'false');
-    taskEl.removeAttribute('inert');
-    announceTask('Trailside exhibit: Giant Sequoia Trunk Cross-Section.');
-    $('scrim').classList.add('show');
+    U.showPanel('Trailside exhibit: Giant Sequoia Trunk Cross-Section.');
     setTimeout(() => { const b = body.querySelector('.seg-btn') || $('task-close'); if (b) b.focus(); }, 520);
   };
 
@@ -485,7 +553,8 @@
           `<button class="btn leaf" id="ach-down">Save .knobe.md</button>` +
         `</div>` +
         `<a class="btn form-btn" id="ach-form" href="${FORM_URL}" target="_blank" rel="noopener">Share your experience <span class="sr-only">(opens in a new tab)</span>→</a>` +
-        `<button class="ach-close" id="ach-close">Return to the grove</button>` +
+        `<button class="btn leaf ach-take" id="ach-close">Take your seed and return to where you began →</button>` +
+        `<p class="task-note ach-note">Your seed will be carried to a trophy at the grove entrance, with an audio description of where it is.</p>` +
       `</div>`;
     document.body.appendChild(ach);
     $('ach-copy').onclick = () => window.GROVE.knobe.copy();
@@ -533,10 +602,77 @@
     setTimeout(() => { const b = $('ach-close'); if (b) b.focus(); }, 360);
   }
 
+  /* Closing the achievement IS taking the seed: the finale carries the visitor
+     back to the entrance where the trophy now holds it. */
   function hideAchievement() {
     const el = $('achievement');
     if (el) { el.classList.remove('show'); el.setAttribute('aria-hidden', 'true'); }
     U.closeTask();
+    if (window.GROVE.finale) window.GROVE.finale.takeSeed();
+  }
+
+  /* ---------------- the look-up canopy note ---------------- */
+  const NOTE_KEY = 'grove.canopynote';
+  let _noteIdx = 0, _noteMin = false;
+  try { _noteMin = localStorage.getItem(NOTE_KEY) === 'min'; } catch (e) {}
+  function syncNoteMin() {
+    const box = $('canopy-note'), btn = $('cn-min'), body = $('cn-body'); if (!box || !btn) return;
+    box.classList.toggle('is-min', _noteMin);
+    btn.setAttribute('aria-expanded', _noteMin ? 'false' : 'true');
+    btn.textContent = _noteMin ? '+' : '–';
+    const l = _noteMin ? 'Expand the looking-up reading' : 'Minimize the looking-up reading';
+    btn.setAttribute('aria-label', l); btn.setAttribute('title', l);
+    if (body) body.hidden = _noteMin;
+  }
+  U.showCanopyNote = function () {
+    const box = $('canopy-note'); if (!box) return;
+    const notes = window.GROVE.CANOPY_NOTES || [];
+    if (!notes.length) return;
+    const n = notes[_noteIdx % notes.length]; _noteIdx++;
+    $('cn-title').textContent = n.t;
+    $('cn-text').textContent = '';
+    setTimeout(() => { $('cn-text').textContent = n.p; }, 40);
+    syncNoteMin();
+    box.hidden = false;
+    box.classList.add('show');
+  };
+  U.hideCanopyNote = function () {
+    const box = $('canopy-note'); if (!box) return;
+    box.classList.remove('show');
+    setTimeout(() => { if (!box.classList.contains('show')) box.hidden = true; }, 450);
+  };
+  function initCanopyNote() {
+    const btn = $('cn-min'); if (!btn) return;
+    btn.onclick = () => {
+      _noteMin = !_noteMin;
+      try { localStorage.setItem(NOTE_KEY, _noteMin ? 'min' : 'open'); } catch (e) {}
+      syncNoteMin();
+    };
+    syncNoteMin();
+  }
+
+  /* ---------------- walker (avatar) preset ---------------- */
+  function syncWalkerUI(kind) {
+    document.querySelectorAll('input[name="walker"]').forEach(r => { r.checked = (r.value === kind); });
+    const btn = $('tool-avatar');
+    if (btn) {
+      const next = kind === 'female' ? 'male' : 'female';
+      const label = 'Switch walker to ' + next + ' (now ' + kind + ')';
+      btn.setAttribute('aria-label', label); btn.setAttribute('title', label);
+    }
+  }
+  function initWalkerChoice() {
+    const P = window.GROVE.player;
+    syncWalkerUI(P.bodyKind);
+    document.querySelectorAll('input[name="walker"]').forEach(r => {
+      r.addEventListener('change', () => { if (r.checked) syncWalkerUI(P.setBody(r.value)); });
+    });
+    const btn = $('tool-avatar');
+    if (btn) btn.onclick = () => {
+      const kind = P.setBody(P.bodyKind === 'female' ? 'male' : 'female');
+      syncWalkerUI(kind);
+      U.toast('Your walker is now ' + kind);
+    };
   }
 
   let _sealing = false;
@@ -587,6 +723,8 @@
       document.body.classList.add('touch');
     }
     initJoystick();
+    initWalkerChoice();
+    initCanopyNote();
     $('task-close').onclick = U.closeTask;
     $('scrim').onclick = U.closeTask;
 
@@ -597,8 +735,14 @@
       if (e.key !== 'Tab') return;
       const taskEl = $('task');
       if (!taskEl.classList.contains('show')) return;
-      const f = taskEl.querySelectorAll('a[href], button:not([disabled]), textarea, input, [tabindex]:not([tabindex="-1"])');
-      const vis = [...f].filter(el => el.offsetParent !== null);
+      // The caption bar lives outside the dialog; while it is showing, its Stop
+      // button joins the trap so it stays reachable (1.4.2).
+      const scopes = [taskEl];
+      const nar = $('captions-bar');
+      if (nar && !nar.hidden) scopes.push(nar);
+      const sel = 'a[href], button:not([disabled]), textarea, input, [tabindex]:not([tabindex="-1"])';
+      const f = scopes.flatMap(s => [...s.querySelectorAll(sel)]);
+      const vis = f.filter(el => el.offsetParent !== null);
       if (!vis.length) return;
       const first = vis[0], last = vis[vis.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
@@ -657,6 +801,8 @@
     // Escape closes the open task panel or seed sidebar (SC 2.1.2 / 2.4.3).
     window.addEventListener('keydown', e => {
       if (e.key === 'Escape' || e.key === 'Esc') {
+        const nar = window.GROVE.narrator;
+        if (nar && nar.isSpeaking()) { e.preventDefault(); nar.stop(); }   // and still close what is open
         if ($('task').classList.contains('show')) { e.preventDefault(); U.closeTask(); return; }
         if ($('sidebar').classList.contains('open')) { e.preventDefault(); U.toggleSidebar(false); return; }
       }

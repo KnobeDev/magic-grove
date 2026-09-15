@@ -35,6 +35,80 @@ window.GROVE.CONFIG = {
   stump: { x: 0, z: -66, r: 16.5, top: 4.2, edge: 5 },
   // The fallen cone, off to the east of the grove.
   cone: { x: 42, z: -44 },
+  // Where the sealed seed comes to rest: a trophy a few steps north of the
+  // entrance. Taking the seed sets the visitor down just south of it, facing it.
+  trophy: { x: 0, z: 70 },
+  returnPos: { x: 0, z: 78 },
+};
+
+/* Short readings shown (and announced) when the visitor looks up into the
+   canopy. Cycled in order, one per look. */
+window.GROVE.CANOPY_NOTES = [
+  { t: 'The crown', p: 'You are looking up nearly three hundred feet. The first branches begin a hundred feet above your head. Below that the trunk is bare, because the lower limbs were shed centuries ago.' },
+  { t: 'Two thousand summers', p: 'Every needle spray up there is temporary. The tree replaces its foliage every few years, yet the shape of the crown has held for two thousand summers. The form outlives the parts.' },
+  { t: 'Where the record begins', p: 'Each ring in the trunk began up here as sunlight. The canopy reads the light, the roots read the soil, and the sapwood carries both down into the record.' },
+  { t: 'The rounded top', p: 'An old sequoia loses its spire. Lightning and wind take the leader, and the crown grows broad and rounded instead. A flat top is a sign of great age.' },
+  { t: 'Cones in the light', p: 'Up in the crown, thousands of small green cones hang sealed. Some have waited twenty years for a fire hot enough to open them.' },
+  { t: 'Filtered light', p: 'The light reaching you has passed through a hundred feet of needles. What arrives on the forest floor is a fraction of what the crown received, and it is enough.' },
+];
+
+/* The Mother of the Forest — reading the rings under your feet. Years are
+   approximate: the outer edge is the last ring she laid down as a living tree
+   (her bark was stripped in 1854); the pith is read as roughly 2,500 years
+   earlier. `curve` maps radius → year (young rings are wide, so the years
+   crowd toward the center). Events are the rings that light up as you cross. */
+window.GROVE.MOTHER = {
+  yearOuter: 1854,
+  yearPith: -650,
+  curve: 0.8,
+  bands: [
+    { min: 0.72, id: 'sapwood', name: 'the Sapwood', hint: 'the pale living sleeve, the only wood that was alive' },
+    { min: 0.2, id: 'heartwood', name: 'the Heartwood', hint: 'the dark rings, every year recorded faithfully' },
+    { min: 0, id: 'pith', name: 'the Pith', hint: 'the center, where a seed once began' },
+  ],
+  events: [
+    { year: 1854, label: 'The bark was stripped', text: 'Men with tools numbered her bark in sections and shipped it to London. This is the last ring she laid down whole.' },
+    { year: 1848, label: 'Footsteps', text: 'The Gold Rush reached these mountains. Within six years, visitors came to see the giants.' },
+    { year: 1775, label: 'A fire year', text: 'A hot burn scarred the base. The bark charred and turned the flame. The ring is narrow, then thick again.' },
+    { year: 1580, label: 'The long drought', text: 'A drought lasting decades thinned the rings to the width of a hair. She kept writing.' },
+    { year: 1350, label: 'A generous century', text: 'Wide, even rings: wet winters and long summers. The record grew fast.' },
+    { year: 1100, label: 'Lightning', text: 'A strike took the leader from the crown. A side branch turned upward and became the new top.' },
+    { year: 800, label: 'The middle years', text: 'By now she was already among the largest living things on the mountain.' },
+    { year: 300, label: 'A young giant', text: 'Rings wide and fast. A tree in a hurry, before it learned to be patient.' },
+    { year: -100, label: 'Rooted', text: 'Her roots met the fungal web. From here on, she never stood alone.' },
+    { year: -650, label: 'The seed', text: 'A fire opened a cone. One seed, six thousandths of a gram, found bare mineral soil and began.' },
+  ],
+};
+
+/* The finale: the seed trophy at the entrance, its explanation, the spoken
+   audio description on return, and the instructor's final word. */
+window.GROVE.TROPHY = {
+  title: 'Your Seed Trophy',
+  layer: 'Departure · the seed, taken',
+  subtitle: 'What you carry out of the grove',
+  explain: [
+    'This is not a prize for finishing. It is a case for what you made. Under the glass turns a single giant sequoia seed: the smallest part of the largest living thing, and the grove’s way of showing you what your file is.',
+    'Your seed is a plain-text file. It has the same three layers you walked: a SHA-256 fingerprint (the bark) that proves the record is unaltered; your own words (the sapwood), every answer you gave, readable by any person; and a small block of structured fields (the heartwood) that any program or AI can parse.',
+    'It needs no login, no platform, and no permission. Open it in any text editor. Paste it into an AI conversation and the model will know what you are making, what you have already decided, and what is yours. Change one character and the fingerprint no longer matches, which is how anyone can tell it is still whole.',
+    'Keep it somewhere you control. Copy it, mail it to yourself, or save the file. The trophy stays here; the seed goes with you.',
+  ],
+  audioDescription: function (name, guidingOn) {
+    var n = name || 'Visitor';
+    var s = n + ', your seed is sealed. The grove has carried you back to where you began, at the south edge of the visitor’s center, facing north. ' +
+      'A few steps ahead of you, on a stone pedestal, stands a golden trophy. Under its glass dome your seed turns slowly in the light: a single giant sequoia seed, holding everything you wrote. ';
+    s += guidingOn
+      ? 'The guiding sound now comes from the trophy; follow it. '
+      : 'Turn on the guiding sound with the music button and it will play from the trophy. ';
+    s += 'Walk toward the trophy and press I to read what it is, take your file, and hear the instructor’s final word.';
+    return s;
+  },
+  finalWord: [
+    'This is the instructor speaking now, not the trees.',
+    'You came in with a project and a name. You leave with a record: not a grade, not a summary written for someone else, but the shape of your own thinking, sealed at the moment you claimed it.',
+    'Here is what I want you to do with it. Keep the file. Read it again in a month. Paste it into whatever tool you think with next, and notice how much less you have to explain. That is the point of the seed. It carries the context so you do not have to carry it in your head.',
+    'And when the work changes, and it will, do not edit this seed. Grow a new one. The old ring stays in the record; the new ring goes around it. That is how the tree does it, and it has had longer to practice than any of us.',
+    'Thank you for walking the grove. The seed does not play itself. Go be the musician.',
+  ],
 };
 
 /* The KNOBE seed schema field order. */

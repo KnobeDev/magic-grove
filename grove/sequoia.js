@@ -120,6 +120,50 @@
     return _needle;
   }
 
+  /* ---------- dense crown texture: overlapping needle masses with irregular
+     sky-holes, seen from BELOW (backlit, dark). Tiled on big horizontal discs
+     across each crown so the canopy closes over the visitor when they look up. */
+  let _crown = null;
+  function crownTexture() {
+    if (_crown) return _crown;
+    const S = 512, cv = document.createElement('canvas'); cv.width = cv.height = S;
+    const g = cv.getContext('2d');
+    g.clearRect(0, 0, S, S);
+    const darks = ['#243f18', '#2c4a1e', '#1f3814', '#345526', '#3a5f2a'];
+    // soft masses, denser toward the centre, leaving ragged gaps
+    for (let i = 0; i < 420; i++) {
+      const a = Math.random() * Math.PI * 2, d = Math.pow(Math.random(), 0.7) * S * 0.47;
+      const x = S / 2 + Math.cos(a) * d, y = S / 2 + Math.sin(a) * d;
+      const r = 16 + Math.random() * 34;
+      const rg = g.createRadialGradient(x, y, 0, x, y, r);
+      const c = darks[(Math.random() * darks.length) | 0];
+      rg.addColorStop(0, c); rg.addColorStop(0.7, c); rg.addColorStop(1, 'rgba(36,63,24,0)');
+      g.fillStyle = rg; g.globalAlpha = 0.75 + Math.random() * 0.25;
+      g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+    }
+    // needle sprays over the masses for a feathered edge
+    g.globalAlpha = 0.9; g.lineCap = 'round';
+    for (let i = 0; i < 420; i++) {
+      const a = Math.random() * Math.PI * 2, d = Math.random() * S * 0.5;
+      const x = S / 2 + Math.cos(a) * d, y = S / 2 + Math.sin(a) * d;
+      const ang = Math.random() * Math.PI * 2, L = 10 + Math.random() * 26;
+      g.strokeStyle = darks[(Math.random() * darks.length) | 0]; g.lineWidth = 1.5 + Math.random() * 2;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(ang) * L, y + Math.sin(ang) * L); g.stroke();
+    }
+    g.globalAlpha = 1;
+    _crown = new T.CanvasTexture(cv); _crown.colorSpace = T.SRGBColorSpace;
+    return _crown;
+  }
+  let _crownMat = null;
+  function crownMat() {
+    // Unlit: a crown seen from below is a backlit silhouette, and an unlit
+    // alphaTest cut-out costs a fraction of a lit one per pixel across sheets
+    // this large. Depth is written so early-Z rejects the overlapping sheets.
+    return _crownMat || (_crownMat = new T.MeshBasicMaterial({
+      map: crownTexture(), alphaTest: 0.3, side: T.DoubleSide, color: col('#8fb86a'), fog: true,
+    }));
+  }
+
   /* ---------- a fluted, tapering trunk via lathe ---------- */
   function trunkMesh(opts) {
     const baseR = opts.baseR;          // radius at ground
@@ -169,6 +213,32 @@
      every branch, so nothing ever floats free of the tree. ---------- */
   const _UP = new T.Vector3(0, 1, 0);
   const _dir = new T.Vector3();
+
+  /* ---------- shared foliage materials. Every tree used to allocate its own
+     mass + frond materials (hundreds of GPU programs/uniform sets); the crown
+     only needs six greens, so build each once and hand them out. ---------- */
+  const BRANCH_MAT = new T.MeshStandardMaterial({ color: col('#4a3120'), roughness: 1 });
+  const SHADE_GREENS = ['#4a7634', '#52803a', '#5c8a3e'];   // interior / shaded
+  const SUN_GREENS = ['#7aa84f', '#8cba56', '#9ec45a'];     // crown / sunlit tips
+  const _massMats = {}, _frondMats = {};
+  function massMat(lit) {
+    const key = (lit ? 's' : 'h') + ((Math.random() * 3) | 0);
+    if (_massMats[key]) return _massMats[key];
+    return (_massMats[key] = new T.MeshStandardMaterial({
+      color: col((lit ? SUN_GREENS : SHADE_GREENS)[+key[1]]),
+      emissive: col(lit ? '#3a5a22' : '#28401a'), emissiveIntensity: lit ? 0.5 : 0.6,
+      roughness: 0.92, metalness: 0, flatShading: true,
+    }));
+  }
+  function frondMat(lit) {
+    const key = (lit ? 's' : 'h') + ((Math.random() * 3) | 0);
+    if (_frondMats[key]) return _frondMats[key];
+    return (_frondMats[key] = new T.MeshStandardMaterial({
+      map: needleTexture(), transparent: true, alphaTest: 0.18, roughness: 1, side: T.DoubleSide,
+      depthWrite: false, emissive: col(lit ? '#496e26' : '#33501c'),
+      emissiveIntensity: lit ? 0.55 : 0.45, color: col((lit ? SUN_GREENS : SHADE_GREENS)[+key[1]]),
+    }));
+  }
   function limb(ax, ay, az, bx, by, bz, r1, r2, mat) {
     const dx = bx - ax, dy = by - ay, dz = bz - az;
     const len = Math.hypot(dx, dy, dz) || 0.001;
@@ -187,25 +257,16 @@
     const tex = needleTexture();
     const top = opts.trunkH;
     const topR = opts.topR;
-    const spread = opts.baseR * 2.6;
+    const spread = opts.baseR * 3.3;   // broad crown: branches reach well out over the trail
     const crownH = opts.canopyH;
     const detail = opts.detail != null ? opts.detail : 1;   // 1 full · 0.5 mid · 0.26 far
 
-    const branchMat = new T.MeshStandardMaterial({ color: col('#4a3120'), roughness: 1 });
+    const branchMat = BRANCH_MAT;
 
     // central leader — the trunk's spine continues up through the crown so
     // branches have a real origin (this is the "trunk fades, leaves take over")
     const leaderTop = top + crownH * 0.98;
     g.add(limb(0, top - 1, 0, 0, leaderTop, 0, topR * 0.9, 0.1, branchMat));
-
-    const shadeGreens = ['#4a7634', '#52803a', '#5c8a3e'];   // interior / shaded
-    const sunGreens = ['#7aa84f', '#8cba56', '#9ec45a'];     // crown / sunlit tips
-    const pickGreen = (lit) => (lit ? sunGreens : shadeGreens)[(Math.random() * 3) | 0];
-    const massMat = (lit) => new T.MeshStandardMaterial({
-      color: col(pickGreen(lit)),
-      emissive: col(lit ? '#3a5a22' : '#28401a'), emissiveIntensity: lit ? 0.5 : 0.6,
-      roughness: 0.92, metalness: 0, flatShading: true,
-    });
 
     // a foliage cluster welded to (cx,cy,cz): flattened blob masses + a feathery
     // billboard frond. `rich` doubles the masses for the dense crown centre.
@@ -224,11 +285,7 @@
         const size = (5.5 + Math.random() * 5) * scale;
         const pl = new T.Mesh(
           new T.PlaneGeometry(size, size * (0.6 + Math.random() * 0.3)),   // wider than tall = frond
-          new T.MeshStandardMaterial({
-            map: tex, transparent: true, alphaTest: 0.18, roughness: 1, side: T.DoubleSide,
-            depthWrite: false, emissive: col(lit ? '#496e26' : '#33501c'),
-            emissiveIntensity: lit ? 0.55 : 0.45, color: col(pickGreen(lit)),
-          })
+          frondMat(lit)
         );
         pl.position.set(cx, cy + size * 0.08, cz);
         pl.rotation.y = Math.random() * Math.PI;
@@ -237,12 +294,25 @@
       }
     }
 
+    // canopy LACE: a horizontal frond hung under a branch tip. Vertical fronds
+    // vanish edge-on when you look straight up; these lie flat, so from the
+    // forest floor the crown reads as a lattice of needles against the sky.
+    // Near (full-detail) trees only.
+    function lace(cx, cy, cz, scale) {
+      if (detail < 1) return;
+      const size = (6 + Math.random() * 4) * scale;
+      const pl = new T.Mesh(new T.PlaneGeometry(size, size * 0.8), frondMat(false));
+      pl.position.set(cx, cy - 0.6, cz);
+      pl.rotation.set(-Math.PI / 2 + (Math.random() - 0.5) * 0.3, 0, Math.random() * Math.PI);
+      g.add(pl);
+    }
+
     // foliage taking over where the bare trunk ends
     leaves(0, top + 0.6, 0, 1.3, false, true);
 
     // tiered whorls of branches around the leader → conical sequoia crown
-    const tiers = Math.max(3, Math.round(5 * detail));
-    const perTier = Math.max(2, Math.round(3 * detail));
+    const tiers = Math.max(3, Math.round(6 * detail));
+    const perTier = Math.max(2, Math.round(4 * detail));
     for (let i = 0; i < tiers; i++) {
       const tf = i / (tiers - 1 || 1);                        // 0 crown base → 1 spire
       const yb = top + crownH * (0.06 + tf * 0.84);
@@ -254,10 +324,24 @@
         const tx = Math.cos(ang) * reach, ty = yb + rise, tz = Math.sin(ang) * reach;
         g.add(limb(0, yb, 0, tx, ty, tz, 0.28, 0.07, branchMat));
         leaves(tx, ty, tz, 1 - tf * 0.4, true);               // sunlit foliage at each tip
+        if (tf < 0.5) lace(tx, ty, tz, 1 - tf * 0.4);        // underside lattice, lower crown (near trees)
       }
     }
     // dense foliage cap over the crown spire
     leaves(0, leaderTop - crownH * 0.06, 0, 1.0, true, true);
+
+    // CROWN DISCS: two or three big horizontal sheets of dense, backlit needle
+    // mass spanning the crown at different heights. From the forest floor they
+    // close the sky into a canopy with only ragged gaps of light (2-3 planes).
+    const discN = /nocrown/.test(location.search) ? 0 : detail >= 1 ? 2 : detail >= 0.5 ? 1 : 0;   // ?nocrown=1 = diagnostics
+    for (let i = 0; i < discN; i++) {
+      const tf = discN === 1 ? 0.5 : 0.3 + (i / (discN - 1)) * 0.45;
+      const size = spread * (2.5 - tf * 0.8) * (0.9 + Math.random() * 0.2);
+      const pl = new T.Mesh(new T.PlaneGeometry(size, size), crownMat());
+      pl.position.set((Math.random() - 0.5) * spread * 0.4, top + crownH * tf, (Math.random() - 0.5) * spread * 0.4);
+      pl.rotation.set(-Math.PI / 2 + (Math.random() - 0.5) * 0.2, 0, Math.random() * Math.PI);
+      g.add(pl);
+    }
 
     return g;
   }
@@ -269,11 +353,14 @@
     }, opts);
     const g = new T.Group();
     g.add(trunkMesh(o));
-    g.add(canopy(o));
+    const crown = canopy(o);
+    g.add(crown);
     g.scale.setScalar(o.scale);
     g.rotation.y = Math.random() * Math.PI * 2;
     g.userData.trunkTop = o.trunkH * o.scale;
     g.userData.baseR = o.baseR * o.scale;
+    g.userData.canopy = crown;                 // swayed by grove-env when you look up
+    g.userData.ph = Math.random() * Math.PI * 2;
     return g;
   }
 
